@@ -17,9 +17,17 @@ data = {
 }
 df = pd.DataFrame(data)
 
+# User input for subsidies and tax reliefs
+subsidy_amount = float(input("Enter the total subsidy amount (USD): "))
+tax_relief_percentage = float(input("Enter the tax relief percentage (as a decimal, e.g., 0.15 for 15%): "))
+
 # Calculate total initial investment and annual operating costs
 initial_investment = df['Initial_Cost'].sum()  # Total initial cost of all components
+initial_investment_after_subsidy = initial_investment - subsidy_amount  # Adjust for subsidy
 annual_om_cost = df['O&M_Cost_Annual'].sum()   # Total annual O&M costs
+
+# Calculate tax relief amount
+tax_relief_amount = initial_investment_after_subsidy * tax_relief_percentage
 
 # Yearly energy production (example value)
 yearly_energy_production = 169727  # kWh
@@ -27,8 +35,8 @@ yearly_energy_production = 169727  # kWh
 # Calculate annual revenue from selling electricity
 annual_revenue = yearly_energy_production * electricity_price
 
-# Calculate net cash flow
-net_cash_flow = annual_revenue - annual_om_cost
+# Calculate net cash flow, accounting for tax relief
+net_cash_flow = annual_revenue - annual_om_cost + tax_relief_amount
 
 # Define the NPV function
 def calculate_npv(initial_investment, cash_flows, discount_rate):
@@ -47,25 +55,25 @@ def calculate_irr(initial_investment, cash_flows):
             npv += cash_flow / (1 + rate)**year
         return npv
 
-    irr_value = fsolve(npv_equation, 0.1)[0]  # Initial guess of 10%
+    irr_value = fsolve(npv_equation, 0.1)[0]  # Initial guess is 0.1 (10%)
     return irr_value
 
 # Prepare cash flows for NPV and IRR calculations
 cash_flows = [net_cash_flow] * project_lifetime  # Assume constant cash flow each year
 
 # Calculate NPV and IRR
-npv_value = calculate_npv(initial_investment, cash_flows, discount_rate)
-irr_value = calculate_irr(initial_investment, cash_flows)
+npv_value = calculate_npv(initial_investment_after_subsidy, cash_flows, discount_rate)
+irr_value = calculate_irr(initial_investment_after_subsidy, cash_flows)
 
 # Calculate Levelized Cost of Energy (LCOE)
-total_annualized_cost = annual_om_cost + (initial_investment / project_lifetime)
+total_annualized_cost = annual_om_cost + (initial_investment_after_subsidy / project_lifetime)
 lcoe_value = total_annualized_cost / yearly_energy_production
 
 # Calculate years required to break even
-break_even_years = initial_investment / net_cash_flow
+break_even_years = initial_investment_after_subsidy / net_cash_flow
 
 # Calculate total profits after balance of system capital cost
-total_profit_after_break_even = (annual_revenue * break_even_years) - initial_investment
+total_profit_after_break_even = (net_cash_flow * project_lifetime) - initial_investment_after_subsidy
 
 # --- Create PDF Table ---
 pdf = FPDF()
@@ -84,7 +92,9 @@ data = [
     ['Internal Rate of Return (IRR)', f'{irr_value * 100:.2f}%'],
     ['Levelized Cost of Energy (LCOE)', f'${lcoe_value:.3f} / kWh'],
     ['Years Required to Break Even', f'{break_even_years:.2f} years'],
-    ['Total Profit After Break Even', f'${total_profit_after_break_even:,.2f}']
+    ['Total Profit After Break Even', f'${total_profit_after_break_even:,.2f}'],
+    ['Subsidy Amount', f'${subsidy_amount:,.2f}'],
+    ['Tax Relief Amount', f'${tax_relief_amount:,.2f}']
 ]
 
 # Add data rows to the table
