@@ -1,0 +1,117 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 1. Load the CSV data (Assuming the CSV is available in the same directory)
+file_path = 'csv_-1.11665_36.92927_fixed_23_0_PT5M_2024.csv'  # Path to the CSV file
+df = pd.read_csv(file_path)  # Read the CSV data into a DataFrame
+
+# 2. Data Preprocessing
+# Convert 'period_end' to datetime objects and set as index
+df['period_end'] = pd.to_datetime(df['period_end'])  # Convert the 'period_end' column to datetime
+df.set_index('period_end', inplace=True)  # Set 'period_end' as the DataFrame index
+
+# Ensure all required columns are present. Fill missing with 0.
+required_columns = ['dni', 'ghi', 'dhi', 'air_temp', 'albedo', 'zenith', 'azimuth']  # Required columns for the calculations
+for col in required_columns:
+    if col not in df.columns:
+        print(f"Warning: Column '{col}' is missing in CSV. Calculations may be inaccurate.")
+        df[col] = 0  # Use 0 as default for missing columns
+
+# 3. System Design Parameters (Example Values - Adjust as needed)
+panel_power_max = 350  # Maximum panel power (in Watts)
+panel_area = 1.6  # Area of each panel (in m^2)
+total_area = 40  # Total available area for solar panels in m^2
+
+# 4. Calculate number of panels based on available area
+num_panels = total_area / panel_area  # Total number of panels
+num_panels = int(num_panels)  # Round to the nearest whole number
+
+# 5. Calculate system capacity (in Watts and kW)
+system_capacity_watts = num_panels * panel_power_max  # Total system capacity in Watts
+system_capacity_kw = system_capacity_watts / 1000  # Convert to kW
+
+# Display the system capacity and number of panels
+print(f"Number of panels: {num_panels}")
+print(f"System capacity: {system_capacity_kw:.2f} kW")
+
+# 6. Filter data for the whole year (January to December)
+year_data = df.copy()  # Copy the entire dataset
+
+# 7. Solar Geometry (Simplified - Assumes Fixed Tilt)
+surface_tilt = 22.5  # Tilt of the solar panels (in degrees)
+surface_azimuth = 90  # Azimuth of the solar panels (in degrees, South-facing)
+
+# Convert angles to radians for calculations
+surface_tilt_rad = np.radians(surface_tilt)
+surface_azimuth_rad = np.radians(surface_azimuth)
+azimuth_rad = np.radians(year_data['azimuth'])
+zenith_rad = np.radians(year_data['zenith'])
+
+# Angle of incidence calculation
+aoi = np.degrees(np.arccos(np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
+                                  np.sin(zenith_rad) * np.sin(surface_tilt_rad) *
+                                  np.cos(azimuth_rad - surface_azimuth_rad)))
+
+aoi = np.clip(aoi, 0, 90)  # Clip results as after 90 degrees, power is cut off
+
+# 8. Irradiance Calculations
+# Calculate beam irradiance on the tilted surface
+year_data['poa_direct'] = year_data['dni'] * np.cos(np.radians(aoi))  # Direct component of irradiance
+year_data['poa_direct'] = year_data['poa_direct'].clip(lower=0)  # Ensure values are positive
+
+# Calculate diffuse irradiance on the tilted surface
+year_data['poa_diffuse'] = year_data['dhi'] * (1 + np.cos(surface_tilt_rad)) / 2
+
+# Calculate reflected irradiance from the ground on the tilted surface
+year_data['poa_sky_diffuse'] = year_data['ghi'] * year_data['albedo'] * (1 - np.cos(surface_tilt_rad)) / 2
+
+# Total irradiance on the tilted surface (sum of all components)
+year_data['poa_total'] = year_data['poa_direct'] + year_data['poa_diffuse'] + year_data['poa_sky_diffuse']
+
+# 9. Module Temperature (Simplified)
+# Estimate module temperature based on the irradiance and air temperature
+nominal_operating_cell_temp = 45  # Nominal operating cell temperature (°C)
+year_data['module_temp'] = nominal_operating_cell_temp + year_data['poa_total'] / 800 * (28 - year_data['air_temp'])
+
+# 10. Power Output
+# Calculate panel power considering temperature effects
+temp_coeff = -0.0045  # Temperature coefficient (%/°C)
+year_data['panel_power'] = panel_power_max * (1 + temp_coeff * (year_data['module_temp'] - nominal_operating_cell_temp))
+stc_irradiance = 1000  # Standard Test Conditions irradiance (in W/m^2)
+year_data['dc_power'] = year_data['panel_power'] * year_data['poa_total'] / stc_irradiance  # DC output
+
+# 11. Inverter
+# Calculate AC power using inverter efficiency
+inverter_efficiency = 0.85  # Efficiency of the inverter
+year_data['ac_power'] = year_data['dc_power'] * inverter_efficiency
+
+# Scale up the power based on the number of panels
+year_data['scaled_power'] = year_data['ac_power'] * num_panels
+
+# 12. Resample data for 5-minute resolution (sum over 5-minute intervals)
+year_data_resampled = year_data.resample('5T').sum()
+
+# 13. Yearly Energy (Sum of energy production across the year)
+yearly_energy_kwh = year_data_resampled['scaled_power'] / 1000  # Energy in kWh
+total_yearly_energy_kwh = yearly_energy_kwh.sum()  # Total energy in kWh
+
+# 14. Battery Size (Estimated as 1 day of storage at full system capacity)
+battery_size_kwh = system_capacity_kw * 24  # Battery size (kWh) for 24-hour storage
+
+# 15. Inverter Size (Inverter should be sized based on the system capacity)
+inverter_size_kw = system_capacity_kw  # Inverter size in kW (assumes 1:1 ratio)
+
+# Display Parameters
+print(f"\nSystem Capacity: {system_capacity_kw:.2f} kW")
+print(f"Total Yearly Energy: {total_yearly_energy_kwh:.2f} kWh")
+print(f"Battery Size: {battery_size_kwh:.2f} kWh")
+print(f"Inverter Size: {inverter_size_kw:.2f} kW")
+
+# Plotting (Plot daily energy production for the entire year, 5-minute intervals)
+plt.figure(figsize=(12, 6))  # Set figure size
+plt.plot(yearly_energy_kwh.index, yearly_energy_kwh, label="5-Minute Energy Production (kWh) for 2024")
+plt.xlabel("Date")  # Label for x-axis
+plt.ylabel("Energy (kWh)")  # Label for y-axis
+plt.title("PV System Daily Energy Production for 2024 (Njagu Estate)")  # Title for the plot
+plt.grid
