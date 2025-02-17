@@ -1,0 +1,94 @@
+import math
+
+# Function to calculate load current
+def calculate_load_current(load_power, ac_voltage, power_factor):
+    return load_power / (ac_voltage * power_factor)
+
+# Function to calculate maximum allowable voltage drop
+def calculate_voltage_drop(ac_voltage, percentage_drop):
+    return (percentage_drop / 100) * ac_voltage
+
+# Function to calculate conductor resistance
+def calculate_conductor_resistance(voltage_drop, load_current):
+    return voltage_drop / load_current
+
+# Function to calculate conductor cross-sectional area
+def calculate_conductor_area(resistivity, conductor_length, resistance):
+    return (resistivity * conductor_length * 2) / resistance
+
+# Function to calculate breaker rating
+def calculate_breaker_rating(load_current, safety_margin=1.25):
+    return safety_margin * load_current
+
+# Function to calculate power loss in the conductor
+def calculate_power_loss(load_current, conductor_resistance):
+    return load_current ** 2 * conductor_resistance
+
+# Function to calculate efficiency
+def calculate_efficiency(output_power, input_power):
+    return (output_power / input_power) * 100
+
+# Function to calculate ground fault current
+def calculate_ground_fault_current(ac_voltage, ground_impedance):
+    return ac_voltage / ground_impedance
+
+# Function to calculate residential breaker size based on TN-C-S system
+def calculate_residential_breaker(ground_fault_current, breaker_tripping_time=0.4):
+    # Based on typical protection standards for TN-C-S systems
+    # Assumption: Breaker should trip within 0.4 seconds
+    return ground_fault_current
+
+# Input section
+print("Enter the details of the AC distribution system:")
+
+ac_conductor_type = input("Enter type of AC conductor (e.g., AAC, ACSR): ")
+ac_load_size = float(input("Enter AC load size in watts (e.g., 5000 for 5 kW): "))
+ac_voltage = float(input("Enter AC voltage in volts (e.g., 240): "))
+percentage_voltage_drop = float(input("Enter allowable voltage drop percentage (e.g., 3): "))
+conductor_length = float(input("Enter conductor length in meters (e.g., 400): "))
+power_factor = float(input("Enter the power factor (e.g., 0.8 for residential loads): "))
+ground_impedance = float(input("Enter the maximum ground impedance in ohms (e.g., 10): "))
+
+# Resistivity for different types of conductors (for example purposes)
+conductors_resistivity = {
+    "AAC": 2.82e-8,  # ohm·meter for AAC conductor
+    "ACSR": 1.75e-8   # ohm·meter for ACSR conductor (example)
+}
+
+# Get resistivity for selected conductor type
+if ac_conductor_type in conductors_resistivity:
+    resistivity = conductors_resistivity[ac_conductor_type]
+else:
+    print("Conductor type not recognized. Using default resistivity for AAC.")
+    resistivity = conductors_resistivity["AAC"]
+
+# Perform calculations
+load_current = calculate_load_current(ac_load_size, ac_voltage, power_factor)
+voltage_drop = calculate_voltage_drop(ac_voltage, percentage_voltage_drop)
+conductor_resistance = calculate_conductor_resistance(voltage_drop, load_current)
+conductor_area = calculate_conductor_area(resistivity, conductor_length, conductor_resistance)
+breaker_rating = calculate_breaker_rating(load_current)
+power_loss = calculate_power_loss(load_current, conductor_resistance)
+efficiency = calculate_efficiency(ac_load_size, ac_load_size + power_loss)
+
+# Calculate ground fault current
+ground_fault_current = calculate_ground_fault_current(ac_voltage, ground_impedance)
+
+# Calculate residential breaker size
+residential_breaker_size = calculate_residential_breaker(ground_fault_current)
+
+# Convert area to mm² for easier interpretation
+conductor_area_mm2 = conductor_area * 1e6  # Convert m² to mm²
+
+# Output results
+print("\nResults:")
+print(f"Load Current: {load_current:.2f} A")
+print(f"Maximum Voltage Drop: {voltage_drop:.2f} V")
+print(f"Conductor Resistance: {conductor_resistance:.4f} Ω")
+print(f"Required Conductor Cross-Sectional Area: {conductor_area_mm2:.2f} mm²")
+print(f"Recommended Breaker Rating: {breaker_rating:.2f} A")
+print(f"Power Loss in Conductors: {power_loss:.2f} W")
+print(f"Total System Efficiency: {efficiency:.2f}%")
+print(f"Ground Fault Current: {ground_fault_current:.2f} A")
+print(f"Residential Breaker Size for TN-C-S System: {residential_breaker_size:.2f} A")
+
