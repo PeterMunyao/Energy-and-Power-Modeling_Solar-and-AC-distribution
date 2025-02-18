@@ -103,9 +103,9 @@ battery_size_kwh = system_capacity_kw * 24  # Battery size (kWh) for 24-hour sto
 inverter_size_kw = system_capacity_kw  # Inverter size in kW (assumes 1:1 ratio)
 
 # Display Parameters
-print(f"\nSystem Capacity: {system_capacity_kw:.2f} kW")
+print(f"\nSystem Capacity based on Panel rated Power and No of Panels: {system_capacity_kw:.2f} kW")
 print(f"Total Yearly Energy: {total_yearly_energy_kwh:.2f} kWh")
-print(f"Battery Size: {battery_size_kwh:.2f} kWh")
+print(f"Battery Size based on Panel rated Power and No of Panels: {battery_size_kwh:.2f} kWh")
 print(f"Inverter Size: {inverter_size_kw:.2f} kW")
 
 # Plotting (Plot daily energy production for the entire year, 24-hour intervals)
