@@ -28,7 +28,7 @@ def calculate_power_loss(load_current, conductor_resistance):
 def calculate_efficiency(output_power, input_power):
     return (output_power / input_power) * 100
 
-# Function to calculate ground fault current
+# Function to calculate ground fault current using ground loop impedance(ground_impedance)
 def calculate_ground_fault_current(ac_voltage, ground_impedance):
     return ac_voltage / ground_impedance
 
@@ -47,7 +47,7 @@ ac_voltage = float(input("Enter AC voltage in volts (e.g., 240): "))
 percentage_voltage_drop = float(input("Enter allowable voltage drop percentage (e.g., 3): "))
 conductor_length = float(input("Enter conductor length in meters (e.g., 400): "))
 power_factor = float(input("Enter the power factor (e.g., 0.8 for residential loads): "))
-ground_impedance = float(input("Enter the maximum ground impedance in ohms (e.g., 10): "))
+ground_impedance = float(input("Enter the maximum ground loop impedance in ohms (e.g., 10): "))
 
 # Resistivity for different types of conductors (for example purposes)
 conductors_resistivity = {
