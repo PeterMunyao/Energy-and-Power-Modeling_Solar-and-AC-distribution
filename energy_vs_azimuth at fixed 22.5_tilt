@@ -23,7 +23,7 @@ num_panels = int(total_area / panel_area)
 system_capacity_kw = (num_panels * panel_power_max) / 1000  
 
 # Azimuth angles to simulate
-azimuth_angles = [0, 3, 20, 30, 45, 60, 80, 90]
+azimuth_angles = [0, 3, 10, 45, 80, 90, 100, 135, 180, 350]
 tilt_angle = 22.5  
 
 # Energy storage dictionary
@@ -68,7 +68,7 @@ for azimuth in azimuth_angles:
 plt.figure(figsize=(12, 6))
 
 for azimuth in azimuth_angles:
-    linestyle = '--' if azimuth in [60, 80, 90] else '-'  # Dotted lines for 60, 80, 90 degrees
+    linestyle = '--' if azimuth in [0, 3, 10, 45, 80, 90, 100, 135, 180, 350] else '-'  # Dotted lines for 60, 80, 90 degrees
     plt.plot(energy_outputs[azimuth].index, energy_outputs[azimuth], linestyle, label=f"Azimuth {azimuth}°")
 
 plt.xlabel("Date")
