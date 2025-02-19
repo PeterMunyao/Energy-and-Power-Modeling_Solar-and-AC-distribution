@@ -1,0 +1,115 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load the CSV data
+file_path = 'csv_-1.11665_36.92927_fixed_23_0_PT5M_2024.csv'
+df = pd.read_csv(file_path)
+
+# Convert 'period_end' to datetime and set as index
+df['period_end'] = pd.to_datetime(df['period_end'])
+df.set_index('period_end', inplace=True)
+
+# Ensure all required columns exist
+required_columns = ['dni', 'ghi', 'dhi', 'air_temp', 'albedo', 'zenith', 'azimuth']
+for col in required_columns:
+    if col not in df.columns:
+        print(f"Warning: Column '{col}' is missing. Using default value 0.")
+        df[col] = 0
+
+# System Design Parameters
+panel_power_max = 350  # Watts
+panel_area = 1.6  # m^2
+total_area = 40  # m^2
+num_panels = int(total_area / panel_area)
+
+# System capacity
+system_capacity_kw = (num_panels * panel_power_max) / 1000
+
+# Define tilt and azimuth ranges to analyze
+tilt_angles = np.arange(0, 91, 5)  # 0 to 90 degrees in steps of 5
+azimuth_angles = np.arange(90, 271, 10)  # 90° (East) to 270° (West) in steps of 10
+
+# Initialize dictionary to store energy production
+energy_results = {}
+
+# Iterate over tilt and azimuth angles
+max_energy = -np.inf
+min_energy = np.inf
+optimal_tilt, optimal_azimuth = None, None
+worst_tilt, worst_azimuth = None, None
+
+for tilt in tilt_angles:
+    for azimuth in azimuth_angles:
+        tilt_rad = np.radians(tilt)
+        azimuth_rad = np.radians(df['azimuth'])
+        surface_azimuth_rad = np.radians(azimuth)
+        zenith_rad = np.radians(df['zenith'])
+        
+        # Angle of incidence
+        aoi = np.degrees(np.arccos(np.cos(zenith_rad) * np.cos(tilt_rad) +
+                                    np.sin(zenith_rad) * np.sin(tilt_rad) *
+                                    np.cos(azimuth_rad - surface_azimuth_rad)))
+        aoi = np.clip(aoi, 0, 90)
+        
+        # Irradiance components
+        df['poa_direct'] = df['dni'] * np.cos(np.radians(aoi))
+        df['poa_direct'] = df['poa_direct'].clip(lower=0)
+        df['poa_diffuse'] = df['dhi'] * (1 + np.cos(tilt_rad)) / 2
+        df['poa_sky_diffuse'] = df['ghi'] * df['albedo'] * (1 - np.cos(tilt_rad)) / 2
+        df['poa_total'] = df['poa_direct'] + df['poa_diffuse'] + df['poa_sky_diffuse']
+        
+        # Module temperature
+        nominal_operating_cell_temp = 45
+        df['module_temp'] = nominal_operating_cell_temp + df['poa_total'] / 800 * (28 - df['air_temp'])
+        
+        # Power output
+        temp_coeff = -0.0045
+        df['panel_power'] = panel_power_max * (1 + temp_coeff * (df['module_temp'] - nominal_operating_cell_temp))
+        stc_irradiance = 1000
+        df['dc_power'] = df['panel_power'] * df['poa_total'] / stc_irradiance
+        
+        # Inverter efficiency
+        inverter_efficiency = 0.85
+        df['ac_power'] = df['dc_power'] * inverter_efficiency
+        df['scaled_power'] = df['ac_power'] * num_panels
+        
+        # Resample daily energy production
+        daily_energy_kwh = df['scaled_power'].resample('D').sum() / 1000
+        total_energy = daily_energy_kwh.sum()
+        
+        # Store results
+        energy_results[(tilt, azimuth)] = daily_energy_kwh
+        
+        # Update max and min energy configurations
+        if total_energy > max_energy:
+            max_energy = total_energy
+            optimal_tilt, optimal_azimuth = tilt, azimuth
+            best_energy_profile = daily_energy_kwh
+            
+        if total_energy < min_energy:
+            min_energy = total_energy
+            worst_tilt, worst_azimuth = tilt, azimuth
+            worst_energy_profile = daily_energy_kwh
+
+# Print optimal and worst configurations
+print(f"Optimal Tilt: {optimal_tilt}°, Optimal Azimuth: {optimal_azimuth}°, Max Energy: {max_energy:.2f} kWh")
+print(f"Worst Tilt: {worst_tilt}°, Worst Azimuth: {worst_azimuth}°, Min Energy: {min_energy:.2f} kWh")
+
+# # Plot results
+plt.figure(figsize=(12, 6))
+
+plt.plot(best_energy_profile.index, best_energy_profile, label=f"Max Energy: Tilt {optimal_tilt}°, Azimuth {optimal_azimuth}°", color='green', linewidth=2)
+plt.plot(worst_energy_profile.index, worst_energy_profile, label=f"Min Energy: Tilt {worst_tilt}°, Azimuth {worst_azimuth}°", color='red', linewidth=2)
+
+plt.xlabel("Date")
+plt.ylabel("Energy (kWh)")
+plt.title("Optimal vs Worst Daily Energy Production")
+plt.grid(True)
+
+# Position legend at the bottom left
+plt.legend(loc='lower left')
+
+# Save and show
+plt.savefig("optimal_vs_worst_tilt_azimuth.pdf", format="pdf", bbox_inches="tight")
+plt.show()
