@@ -1,0 +1,132 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+# Load the CSV file containing solar irradiance data
+file_path = 'csv_-1.11665_36.92927_fixed_23_0_PT5M_2024.csv'
+df = pd.read_csv(file_path)
+
+# Convert 'period_end' column to datetime format for proper time-based indexing
+df['period_end'] = pd.to_datetime(df['period_end'], errors='coerce')
+df = df.dropna(subset=['period_end'])  # Remove rows where conversion failed (NaT values)
+df.set_index('period_end', inplace=True)  # Set 'period_end' as the DataFrame index
+
+# Define the necessary columns for calculations
+columns_needed = ['dni', 'ghi', 'dhi', 'air_temp', 'albedo', 'zenith', 'azimuth']
+for col in columns_needed:
+    if col not in df.columns:
+        df[col] = 0  # If any column is missing, fill it with zeros
+    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)  # Convert to numeric and handle NaN values
+
+# Solar panel system parameters
+panel_power_max = 390  # Maximum power per panel in watts
+panel_area = 1.6  # Area of a single panel in square meters
+total_area = 40  # Total available area for panels in square meters
+num_panels = total_area / panel_area  # Calculate the total number of panels
+system_capacity_kw = (num_panels * panel_power_max) / 1000  # Convert total system power to kW
+
+# Convert angles from degrees to radians for calculations
+df['zenith_rad'] = np.radians(df['zenith'])
+df['azimuth_rad'] = np.radians(df['azimuth'])
+
+# Define panel orientation parameters
+surface_tilt = np.radians(25)  # Panel tilt angle in radians
+surface_azimuth = np.radians(180)  # Panel azimuth (facing due south)
+
+# Calculate the Angle of Incidence (AOI) using the formula
+df['aoi'] = np.degrees(np.arccos(
+    np.cos(df['zenith_rad']) * np.cos(surface_tilt) +
+    np.sin(df['zenith_rad']) * np.sin(surface_tilt) * np.cos(df['azimuth_rad'] - surface_azimuth)
+))
+df['aoi'] = np.clip(df['aoi'], 0, 90)  # Limit AOI to the range [0, 90] degrees
+
+# Compute Plane of Array (POA) irradiance
+# Direct irradiance component
+df['poa_direct'] = df['dni'] * np.cos(np.radians(df['aoi']))
+df['poa_direct'] = df['poa_direct'].clip(lower=0)  # Ensure no negative values
+
+# Diffuse irradiance components
+df['poa_diffuse'] = df['dhi'] * (1 + np.cos(surface_tilt)) / 2  # Sky diffuse
+df['poa_sky_diffuse'] = df['ghi'] * df['albedo'] * (1 - np.cos(surface_tilt)) / 2  # Ground reflected
+
+df['poa_total'] = df['poa_direct'] + df['poa_diffuse'] + df['poa_sky_diffuse']  # Total POA irradiance
+
+# Estimate module temperature using the NOCT model
+nominal_operating_cell_temp = 45  # Nominal Operating Cell Temperature (NOCT) in °C
+df['module_temp'] = nominal_operating_cell_temp + df['poa_total'] / 800 * (28 - df['air_temp'])
+
+# Calculate power output considering temperature effects
+temp_coeff = -0.0045  # Power temperature coefficient per °C
+df['panel_power'] = panel_power_max * (1 + temp_coeff * (df['module_temp'] - nominal_operating_cell_temp))
+stc_irradiance = 1000  # Standard Test Conditions (STC) irradiance in W/m²
+df['dc_power'] = df['panel_power'] * df['poa_total'] / stc_irradiance  # DC power output
+
+# Convert to AC power using inverter efficiency
+inverter_efficiency = 0.86  # Efficiency factor
+df['ac_power'] = df['dc_power'] * inverter_efficiency
+
+df['scaled_power'] = df['ac_power'] * num_panels  # Total system output power
+
+# Ensure the DataFrame index is in datetime format
+df.index = pd.to_datetime(df.index, errors='coerce')
+df = df.dropna(subset=['scaled_power'])  # Remove rows where power calculation failed (NaN values)
+
+# Remove January data (only plotting February to December)
+df = df[df.index.month != 1]
+
+# Create a figure with subplots for each month (2 months per row, 6 rows total)
+fig, axes = plt.subplots(6, 2, figsize=(15, 20), sharey=True)
+fig.suptitle("Monthly Power Output for February-December 2024 (kW), Location: -1.11665, 36.92927 at 5 Min Resolution", fontsize=14, fontweight="bold")
+
+# Loop through months (February to December)
+months_to_plot = list(range(2, 13))  # Months 2 to 12
+
+# Initialize min and max values for y-axis scaling
+min_value = float('inf')
+max_value = float('-inf')
+
+# First, loop through all months to find the overall min and max power values
+for i, month in enumerate(months_to_plot):
+    month_data = df[df.index.month == month]  # Filter data for the current month
+
+    if not month_data.empty:
+        # Calculate min and max scaled power for current month
+        min_value = min(min_value, month_data['scaled_power'].min())
+        max_value = max(max_value, month_data['scaled_power'].max())
+
+# Now loop again to plot the data with the fixed y-axis scale
+for i, month in enumerate(months_to_plot):
+    ax = axes[i // 2, i % 2]  # Determine subplot position (2 months per row)
+    month_data = df[df.index.month == month]  # Filter data for the current month
+
+    if not month_data.empty:
+        ax.plot(month_data.index, month_data['scaled_power'] / 1000, color='red', label=f'Month {month}')  # Plot power output
+        ax.set_title(month_data.index[0].strftime('%B'), fontsize=12, fontweight="bold")  # Set subplot title to month name
+    else:
+        ax.set_title(pd.to_datetime(f'2024-{month}-01').strftime('%B'), fontsize=12, fontweight="bold")  # Set title if no data
+
+    # Configure x-axis to show each day while maintaining 5-minute resolution
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))  # Show each day
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d'))  # Display day numbers
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=89, fontsize=6)  # Rotate labels for better readability and adjust font size and weight
+
+    ax.set_ylabel('Power Output (kW)', fontsize=11, fontweight='bold')  # Add y-axis label
+
+    # Set the same y-axis limits for all subplots
+    ax.set_ylim(min_value / 1000, max_value / 1000)  # Scale power in kW
+
+    ax.grid(True, linestyle='--', alpha=0.9)  # Add grid lines for readability
+    ax.legend(loc="lower left", fontsize=5)  # Add legend
+
+# Hide any unused subplot (if necessary, based on the number of months)
+axes[5, 1].axis("off")
+
+plt.tight_layout(rect=[0, 0.03, 1, 0.94])  # Adjust layout to prevent overlapping
+
+# Save the figure as a PDF
+pdf_path = 'solar_power_output_2024.pdf'
+plt.savefig(pdf_path, format='pdf', bbox_inches='tight')
+plt.close()  # Close the plot to avoid displaying it in interactive mode
+
+print(f"PDF saved at {pdf_path}")
