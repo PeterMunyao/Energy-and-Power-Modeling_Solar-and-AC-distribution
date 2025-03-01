@@ -1,0 +1,115 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+
+# Set global font to LaTeX IEEE Access standard font
+rcParams['text.usetex'] = True
+rcParams['font.family'] = 'serif'
+rcParams['font.serif'] = ['Times New Roman']
+
+# Load CSV Data
+file_path = 'csv_40.886273_23.912687_fixed_23_180_PT5M.csv'
+df = pd.read_csv(file_path)
+
+# Convert 'period_end' to datetime and set as index
+df['period_end'] = pd.to_datetime(df['period_end'])
+df.set_index('period_end', inplace=True)
+
+# Ensure required columns exist
+required_columns = ['dni', 'ghi', 'dhi', 'air_temp', 'albedo', 'zenith', 'azimuth', 'cloud_opacity', 'relative_humidity', 'wind_speed_10m']
+for col in required_columns:
+    if col not in df.columns:
+        print(f"Warning: Column '{col}' is missing in CSV. Filling with zeros.")
+        df[col] = 0
+
+# System Parameters
+panel_power_max = 390  # W per panel
+system_capacity_kw = 1010.88  # System capacity in kW
+system_capacity_w = system_capacity_kw * 1000
+num_panels = int(system_capacity_w / panel_power_max)
+
+surface_tilt = 25  # degrees
+surface_azimuth = 0  # 0 degrees (North)
+
+temp_coeff = -0.005  # Temperature coefficient -0.50% per degree Celsius
+nominal_operating_cell_temp = 45  # °C
+inverter_efficiency = 0.85
+stc_irradiance = 800  # W/m²
+
+# Extract May Data
+may_data = df[df.index.month == 5].copy()
+
+# Convert angles to radians
+surface_tilt_rad = np.radians(surface_tilt)
+surface_azimuth_rad = np.radians(surface_azimuth)
+
+# Handle negative azimuth values
+may_data['azimuth'] = may_data['azimuth'] % 360
+azimuth_rad = np.radians(may_data['azimuth'])
+zenith_rad = np.radians(may_data['zenith'])
+
+aoi = np.degrees(np.arccos(
+    np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
+    np.sin(zenith_rad) * np.sin(surface_tilt_rad) * np.cos(azimuth_rad - surface_azimuth_rad)
+))
+aoi = np.clip(aoi, 0, 180)
+
+# Irradiance Calculations with Cloud Opacity Correction
+may_data['poa_direct'] = may_data['dni'] * np.cos(np.radians(aoi)) * (1 - may_data['cloud_opacity'] / 100)
+may_data['poa_direct'] = may_data['poa_direct'].clip(lower=0)
+
+may_data['poa_diffuse'] = may_data['dhi'] * (1 + np.cos(surface_tilt_rad)) / 2
+may_data['poa_sky_diffuse'] = may_data['ghi'] * may_data['albedo'] * (1 - np.cos(surface_tilt_rad)) / 2
+
+may_data['poa_total'] = may_data['poa_direct'] + may_data['poa_diffuse'] + may_data['poa_sky_diffuse']
+
+# Wind Chill Calculation
+def calculate_wind_chill(temp, wind_speed):
+    return 13.12 + 0.6215 * temp - 11.37 * wind_speed ** 0.16 + 0.3965 * temp * wind_speed ** 0.16
+
+may_data['wind_chill_temp'] = may_data.apply(lambda row: calculate_wind_chill(row['air_temp'], row['wind_speed_10m']), axis=1)
+
+# Convective Heat Transfer Calculation
+def calculate_convective_heat_transfer(wind_speed, air_temp, surface_area=1):
+    h = 10.45 - wind_speed + 10 * np.sqrt(wind_speed)
+    return h * surface_area * (air_temp - 25)
+
+may_data['convective_heat_transfer'] = may_data.apply(lambda row: calculate_convective_heat_transfer(row['wind_speed_10m'], row['air_temp']), axis=1)
+
+# Module Temperature Estimation
+may_data['module_temp'] = nominal_operating_cell_temp + may_data['poa_total'] / 800 * (28 - may_data['air_temp'])
+may_data['module_temp'] = may_data['module_temp'] - may_data['wind_chill_temp']
+may_data['module_temp'] += may_data['convective_heat_transfer'] / 1000
+
+# DC Power Calculation
+may_data['panel_power'] = panel_power_max * (1 + temp_coeff * (may_data['module_temp'] - nominal_operating_cell_temp))
+may_data['dc_power'] = may_data['panel_power'] * may_data['poa_total'] / stc_irradiance
+may_data['dc_power'] *= (1 - 0.002 * may_data['relative_humidity'])
+
+# Inverter Efficiency and Scaling
+may_data['ac_power'] = may_data['dc_power'] * inverter_efficiency
+may_data['scaled_power'] = may_data['ac_power'] * num_panels
+
+# Apply Losses
+conductor_loss_factor = 0.03
+other_loss_factor = 0.05
+may_data['actual_ac_power'] = may_data['ac_power'] * (1 - conductor_loss_factor) * (1 - other_loss_factor)
+may_data['scaled_actual_power'] = may_data['actual_ac_power'] * num_panels
+
+# Energy Calculation
+may_energy_kwh_actual = may_data['scaled_actual_power'].resample('D').sum() / 1000
+total_may_energy_mwh_actual = may_energy_kwh_actual.sum() / 1000
+print(f"Total power output for May (after system losses): {total_may_energy_mwh_actual:.2f} MWh")
+
+# Plotting
+plt.figure(figsize=(12, 6))
+plt.plot(may_energy_kwh_actual.index, may_energy_kwh_actual, 'g-', label='Daily Energy Production (kWh) After Losses', linewidth=2)
+plt.xlabel("Date", fontsize=12)
+plt.ylabel("Energy (KWh)", fontsize=12)
+plt.title("PV System Daily Energy Production in May 2024 (After Losses) - Serres-C, Greece.", fontsize=14, fontweight='bold')
+plt.legend()
+plt.grid(True, linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.savefig("serres_may_2024_with_losses.pdf", format="pdf")
+plt.show()
