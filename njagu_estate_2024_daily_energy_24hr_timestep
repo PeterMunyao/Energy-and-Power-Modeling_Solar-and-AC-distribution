@@ -2,6 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Set the font to Garamond
+plt.rcParams['font.family'] = 'Garamond'
+
+# Set default font size for better visibility
+plt.rcParams.update({'font.size': 14})  # Set default font size for all text elements
+
 # 1. Load the CSV data
 file_path = 'csv_-1.11665_36.92927_fixed_23_0_PT5M_2024.csv'  # Path to the CSV file
 df = pd.read_csv(file_path)  # Read the CSV data into a DataFrame
@@ -89,37 +95,41 @@ year_data['ac_power'] = year_data['dc_power'] * inverter_efficiency
 # Scale up the power based on the number of panels
 year_data['scaled_power'] = year_data['ac_power'] * num_panels
 
-# 12. Resample data for 24-hour resolution (sum over 24-hour intervals)
-year_data_resampled = year_data.resample('D').sum()
+# 12. Calculate 5-minute energy (scaled power * 5 minutes)
+year_data['five_min_energy_kwh'] = year_data['scaled_power'] * (5 / 60) / 1000  # Convert from Watts to kW and multiply by 5 minutes
 
-# 13. Yearly Energy (Sum of energy production across the year)
-yearly_energy_kwh = year_data_resampled['scaled_power'] / 1000  # Energy in kWh
-total_yearly_energy_kwh = yearly_energy_kwh.sum()  # Total energy in kWh
+# 13. Calculate the 24-hour energy
+# Sum the energy for each 24-hour period
+twenty_four_hour_energy = year_data['five_min_energy_kwh'].resample('D').sum()  # Daily energy total (24-hour energy)
 
-# 14. Battery Size (Estimated as 1 day of storage at full system capacity)
-battery_size_kwh = system_capacity_kw * 24  # Battery size (kWh) for 24-hour storage
-
-# 15. Inverter Size (Inverter should be sized based on the system capacity)
-inverter_size_kw = system_capacity_kw  # Inverter size in kW (assumes 1:1 ratio)
-
-# Display Parameters
-print(f"\nSystem Capacity based on Panel rated Power and No of Panels: {system_capacity_kw:.2f} kW")
-print(f"Total Yearly Energy: {total_yearly_energy_kwh:.2f} kWh")
-print(f"Battery Size based on Panel rated Power and No of Panels: {battery_size_kwh:.2f} kWh")
-print(f"Inverter Size: {inverter_size_kw:.2f} kW")
-
-# Plotting (Plot daily energy production for the entire year, 24-hour intervals)
+# 14. Plotting (Plot 24-hour energy production for the entire year)
 plt.figure(figsize=(12, 6))  # Set figure size
-plt.plot(yearly_energy_kwh.index, yearly_energy_kwh, label="24-Hourly Energy Production (kWh) for 2024")
-plt.xlabel("Date")  # Label for x-axis
-plt.ylabel("Energy (kWh)")  # Label for y-axis
-plt.title("PV System Daily Energy Production for 2024 (Njagu Estate)")  # Title for the plot
+plt.plot(twenty_four_hour_energy.index, twenty_four_hour_energy, label="24-Hour Resolution Energy Production (kWh) for 2024")
+
+# Add vertical lines to mark the beginning of each month
+for month in range(1, 13):
+    plt.axvline(pd.Timestamp(f'2024-{month:02d}-01'), color='gray', linestyle='--', linewidth=1)  # Vertical line at the start of each month
+
+# Labels and title with increased font size
+plt.xlabel("Date", fontsize=16)
+plt.ylabel("Energy (kWh)", fontsize=16)
+plt.title("Njagu_Mhasibu_Estate PV System 24-Hour Resolution Energy Production for 2024", fontsize=18)
+
+# Grid and ticks with improved visibility
 plt.grid(True)  # Show grid
-plt.legend()  # Show legend
-plt.tight_layout()  # Ensure everything fits without overlapping
+plt.legend(fontsize=14)  # Increase legend font size
+plt.xticks(fontsize=12, rotation=45)  # Rotate x-tick labels for better visibility and increase font size
+plt.yticks(fontsize=12)  # Increase font size for y-ticks
+
+# Tight layout to avoid overlapping elements
+plt.tight_layout()
 
 # Save the plot as a PDF file
-plt.savefig("njagu_estate_2024_daily_energy_24hr_timestep.pdf", format="pdf")
+plt.savefig("NJAGU-MHASIBU_estate_2024_24_hour_energy_with_months.pdf", format="pdf")
 
 # Show the plot
 plt.show()
+
+# Display total 24-hour energy produced
+total_yearly_energy_kwh = twenty_four_hour_energy.sum()  # Total energy in kWh for the entire year
+print(f"Total Yearly Energy (calculated from 5-minute data, summed to 24-hour periods): {total_yearly_energy_kwh:.2f} kWh")
