@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 1. Load the CSV data (Assuming the CSV is available in the same directory)
+# 1. Load the CSV data
 file_path = 'csv_-1.11665_36.92927_fixed_23_0_PT5M_2024.csv'  # Path to the CSV file
 df = pd.read_csv(file_path)  # Read the CSV data into a DataFrame
 
@@ -10,6 +10,9 @@ df = pd.read_csv(file_path)  # Read the CSV data into a DataFrame
 # Convert 'period_end' to datetime objects and set as index
 df['period_end'] = pd.to_datetime(df['period_end'])  # Convert the 'period_end' column to datetime
 df.set_index('period_end', inplace=True)  # Set 'period_end' as the DataFrame index
+
+# Convert from UTC to Kenya Time (UTC +3)
+df.index = df.index + pd.Timedelta(hours=3)  # Adjust the index to Kenya Time (EAT)
 
 # Ensure all required columns are present. Fill missing with 0.
 required_columns = ['dni', 'ghi', 'dhi', 'air_temp', 'albedo', 'zenith', 'azimuth']  # Required columns for the calculations
@@ -35,18 +38,15 @@ system_capacity_kw = system_capacity_watts / 1000  # Convert to kW
 print(f"Number of panels: {num_panels}")
 print(f"System capacity: {system_capacity_kw:.2f} kW")
 
-# 6. Filter data for the whole year (January to December)
-year_data = df.copy()  # Copy the entire dataset
-
-# 7. Solar Geometry (Simplified - Assumes Fixed Tilt)
+# 6. Solar Geometry (Simplified - Assumes Fixed Tilt)
 surface_tilt = 22.5  # Tilt of the solar panels (in degrees)
 surface_azimuth = 90  # Azimuth of the solar panels (in degrees, South-facing)
 
 # Convert angles to radians for calculations
 surface_tilt_rad = np.radians(surface_tilt)
 surface_azimuth_rad = np.radians(surface_azimuth)
-azimuth_rad = np.radians(year_data['azimuth'])
-zenith_rad = np.radians(year_data['zenith'])
+azimuth_rad = np.radians(df['azimuth'])
+zenith_rad = np.radians(df['zenith'])
 
 # Angle of incidence calculation
 aoi = np.degrees(np.arccos(np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
@@ -55,63 +55,70 @@ aoi = np.degrees(np.arccos(np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
 
 aoi = np.clip(aoi, 0, 90)  # Clip results as after 90 degrees, power is cut off
 
-# 8. Irradiance Calculations
+# 7. Irradiance Calculations
 # Calculate beam irradiance on the tilted surface
-year_data['poa_direct'] = year_data['dni'] * np.cos(np.radians(aoi))  # Direct component of irradiance
-year_data['poa_direct'] = year_data['poa_direct'].clip(lower=0)  # Ensure values are positive
+df['poa_direct'] = df['dni'] * np.cos(np.radians(aoi))  # Direct component of irradiance
+df['poa_direct'] = df['poa_direct'].clip(lower=0)  # Ensure values are positive
 
 # Calculate diffuse irradiance on the tilted surface
-year_data['poa_diffuse'] = year_data['dhi'] * (1 + np.cos(surface_tilt_rad)) / 2
+df['poa_diffuse'] = df['dhi'] * (1 + np.cos(surface_tilt_rad)) / 2
 
 # Calculate reflected irradiance from the ground on the tilted surface
-year_data['poa_sky_diffuse'] = year_data['ghi'] * year_data['albedo'] * (1 - np.cos(surface_tilt_rad)) / 2
+df['poa_sky_diffuse'] = df['ghi'] * df['albedo'] * (1 - np.cos(surface_tilt_rad)) / 2
 
 # Total irradiance on the tilted surface (sum of all components)
-year_data['poa_total'] = year_data['poa_direct'] + year_data['poa_diffuse'] + year_data['poa_sky_diffuse']
+df['poa_total'] = df['poa_direct'] + df['poa_diffuse'] + df['poa_sky_diffuse']
 
-# 9. Module Temperature (Simplified)
+# 8. Module Temperature (Simplified)
 # Estimate module temperature based on the irradiance and air temperature
 nominal_operating_cell_temp = 45  # Nominal operating cell temperature (°C)
-year_data['module_temp'] = nominal_operating_cell_temp + year_data['poa_total'] / 800 * (28 - year_data['air_temp'])
+df['module_temp'] = nominal_operating_cell_temp + df['poa_total'] / 800 * (28 - df['air_temp'])
 
-# 10. Power Output
+# 9. Power Output
 # Calculate panel power considering temperature effects
 temp_coeff = -0.0045  # Temperature coefficient (%/°C)
-year_data['panel_power'] = panel_power_max * (1 + temp_coeff * (year_data['module_temp'] - nominal_operating_cell_temp))
+df['panel_power'] = panel_power_max * (1 + temp_coeff * (df['module_temp'] - nominal_operating_cell_temp))
 stc_irradiance = 1000  # Standard Test Conditions irradiance (in W/m^2)
-year_data['dc_power'] = year_data['panel_power'] * year_data['poa_total'] / stc_irradiance  # DC output
+df['dc_power'] = df['panel_power'] * df['poa_total'] / stc_irradiance  # DC output
 
-# 11. Inverter
+# 10. Inverter
 # Calculate AC power using inverter efficiency
 inverter_efficiency = 0.85  # Efficiency of the inverter
-year_data['ac_power'] = year_data['dc_power'] * inverter_efficiency
+df['ac_power'] = df['dc_power'] * inverter_efficiency
 
 # Scale up the power based on the number of panels
-year_data['scaled_power'] = year_data['ac_power'] * num_panels
+df['scaled_power'] = df['ac_power'] * num_panels
 
-# 12. Resample data for 5-minute resolution (sum over 5-minute intervals)
-year_data_resampled = year_data.resample('5T').sum()
+# 11. Energy Calculation (5-minute intervals to hourly energy)
+df['Energy_kWh'] = (df['scaled_power'] * 5 / 60) / 1000  # Convert from Watts to kWh (5 min to hour)
 
-# 13. Yearly Energy (Sum of energy production across the year)
-yearly_energy_kwh = year_data_resampled['scaled_power'] / 1000  # Energy in kWh
-total_yearly_energy_kwh = yearly_energy_kwh.sum()  # Total energy in kWh
+# 12. Hourly Energy Calculation (Summing 5-minute energy intervals to get hourly energy)
+# Sum the energy for the 5-minute intervals within each hour
+df['Hourly_Energy_kWh'] = df['Energy_kWh'].resample('h').sum()  # Sum for hourly energy in kWh
 
-# 14. Battery Size (Estimated as 1 day of storage at full system capacity)
-battery_size_kwh = system_capacity_kw * 24  # Battery size (kWh) for 24-hour storage
+# Check if there are any missing values in the 'Hourly_Energy_kWh' column
+df['Hourly_Energy_kWh'].fillna(0, inplace=True)  # Fill any NaN values with 0
 
-# 15. Inverter Size (Inverter should be sized based on the system capacity)
-inverter_size_kw = system_capacity_kw  # Inverter size in kW (assumes 1:1 ratio)
+# 13. Plotting Energy
 
-# Display Parameters
-print(f"\nSystem Capacity based on Panel rated Power and No of Panels: {system_capacity_kw:.2f} kW")
-print(f"Total Yearly Energy: {total_yearly_energy_kwh:.2f} kWh")
-print(f"Battery Size based on Panel rated Power and No of Panels: {battery_size_kwh:.2f} kWh")
-print(f"Inverter Size: {inverter_size_kw:.2f} kW")
+plt.figure(figsize=(12, 5))  # Set figure size
 
-# Plotting (Plot daily energy production for the entire year, 5-minute intervals)
-plt.figure(figsize=(12, 6))  # Set figure size
-plt.plot(yearly_energy_kwh.index, yearly_energy_kwh, label="5-Minute Energy Production (kWh) for 2024")
-plt.xlabel("Date")  # Label for x-axis
-plt.ylabel("Energy (kWh)")  # Label for y-axis
-plt.title("PV System Daily Energy Production for 2024 (Njagu Estate)")  # Title for the plot
-plt.grid
+plt.plot(df['Hourly_Energy_kWh'].index, df['Hourly_Energy_kWh'], color='blue', label="Hourly Energy (kWh)")
+plt.xlabel("Date", fontsize=16 )  # Label for x-axis
+plt.ylabel("Energy (kWh)", fontsize=16)  # Label for y-axis
+plt.title("Daily Solar Energy Production computed at 5 Minutes Resolution at Njagu_Mhasibu_Estate 2024", fontsize=16)  # Title for the plot
+plt.grid(True)  # Show grid
+plt.legend()  # Show legend
+
+# Adjust layout
+plt.tight_layout()
+
+# Save the plot as a PDF file
+plt.savefig("Njagu_Mhasibu_Estate_Daily Energy 5 Minutes Resolution", format="pdf")
+
+# Show the plot
+plt.show()
+
+# Display results
+print(f"System Capacity: {system_capacity_kw:.2f} kW")
+print(f"Total Hourly Energy (kWh): {df['Hourly_Energy_kWh'].sum():.2f} kWh")
