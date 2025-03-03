@@ -3,10 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 
-# Set global font to LaTeX IEEE Access standard font
-rcParams['text.usetex'] = True
+# Set font to Garamond
 rcParams['font.family'] = 'serif'
-rcParams['font.serif'] = ['Times New Roman']
+rcParams['font.serif'] = ['Garamond']
 
 # Load CSV Data
 file_path = 'csv_40.886273_23.912687_fixed_23_180_PT5M.csv'
@@ -34,8 +33,8 @@ surface_azimuth = 0  # 0 degrees (North)
 
 temp_coeff = -0.005  # Temperature coefficient -0.50% per degree Celsius
 nominal_operating_cell_temp = 45  # °C
-inverter_efficiency = 0.85
-stc_irradiance = 800  # W/m²
+inverter_efficiency = 0.98
+stc_irradiance = 1000  # W/m²
 
 # Extract May Data
 may_data = df[df.index.month == 5].copy()
@@ -49,45 +48,29 @@ may_data['azimuth'] = may_data['azimuth'] % 360
 azimuth_rad = np.radians(may_data['azimuth'])
 zenith_rad = np.radians(may_data['zenith'])
 
+# Angle of Incidence (AOI) Calculation
 aoi = np.degrees(np.arccos(
     np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
     np.sin(zenith_rad) * np.sin(surface_tilt_rad) * np.cos(azimuth_rad - surface_azimuth_rad)
 ))
 aoi = np.clip(aoi, 0, 180)
 
-# Irradiance Calculations with Cloud Opacity Correction
+# Plane of Array (POA) Irradiance Calculation
 may_data['poa_direct'] = may_data['dni'] * np.cos(np.radians(aoi)) * (1 - may_data['cloud_opacity'] / 100)
 may_data['poa_direct'] = may_data['poa_direct'].clip(lower=0)
-
 may_data['poa_diffuse'] = may_data['dhi'] * (1 + np.cos(surface_tilt_rad)) / 2
 may_data['poa_sky_diffuse'] = may_data['ghi'] * may_data['albedo'] * (1 - np.cos(surface_tilt_rad)) / 2
-
 may_data['poa_total'] = may_data['poa_direct'] + may_data['poa_diffuse'] + may_data['poa_sky_diffuse']
 
-# Wind Chill Calculation
-def calculate_wind_chill(temp, wind_speed):
-    return 13.12 + 0.6215 * temp - 11.37 * wind_speed ** 0.16 + 0.3965 * temp * wind_speed ** 0.16
-
-may_data['wind_chill_temp'] = may_data.apply(lambda row: calculate_wind_chill(row['air_temp'], row['wind_speed_10m']), axis=1)
-
-# Convective Heat Transfer Calculation
-def calculate_convective_heat_transfer(wind_speed, air_temp, surface_area=1):
-    h = 10.45 - wind_speed + 10 * np.sqrt(wind_speed)
-    return h * surface_area * (air_temp - 25)
-
-may_data['convective_heat_transfer'] = may_data.apply(lambda row: calculate_convective_heat_transfer(row['wind_speed_10m'], row['air_temp']), axis=1)
-
-# Module Temperature Estimation
+# Module Temperature Calculation
 may_data['module_temp'] = nominal_operating_cell_temp + may_data['poa_total'] / 800 * (28 - may_data['air_temp'])
-may_data['module_temp'] = may_data['module_temp'] - may_data['wind_chill_temp']
-may_data['module_temp'] += may_data['convective_heat_transfer'] / 1000
 
 # DC Power Calculation
-may_data['panel_power'] = panel_power_max * (1 + temp_coeff * (may_data['module_temp'] - nominal_operating_cell_temp))
-may_data['dc_power'] = may_data['panel_power'] * may_data['poa_total'] / stc_irradiance
+may_data['dc_power'] = panel_power_max * (1 + temp_coeff * (may_data['module_temp'] - nominal_operating_cell_temp))
+may_data['dc_power'] *= may_data['poa_total'] / stc_irradiance
 may_data['dc_power'] *= (1 - 0.002 * may_data['relative_humidity'])
 
-# Inverter Efficiency and Scaling
+# AC Power Calculation
 may_data['ac_power'] = may_data['dc_power'] * inverter_efficiency
 may_data['scaled_power'] = may_data['ac_power'] * num_panels
 
@@ -97,19 +80,121 @@ other_loss_factor = 0.05
 may_data['actual_ac_power'] = may_data['ac_power'] * (1 - conductor_loss_factor) * (1 - other_loss_factor)
 may_data['scaled_actual_power'] = may_data['actual_ac_power'] * num_panels
 
-# Energy Calculation
-may_energy_kwh_actual = may_data['scaled_actual_power'].resample('D').sum() / 1000
+# Energy Calculation (Averaging 5-minute power over 1 hour)
+may_data['energy_kwh'] = may_data['scaled_actual_power'].resample('H').mean() / 1000
+may_energy_kwh_actual = may_data['energy_kwh'].resample('D').sum()
+
 total_may_energy_mwh_actual = may_energy_kwh_actual.sum() / 1000
-print(f"Total power output for May (after system losses): {total_may_energy_mwh_actual:.2f} MWh")
+print(f"Total energy output for May (after system losses): {total_may_energy_mwh_actual:.2f} MWh")
 
 # Plotting
-plt.figure(figsize=(12, 6))
-plt.plot(may_energy_kwh_actual.index, may_energy_kwh_actual, 'g-', label='Daily Energy Production (kWh) After Losses', linewidth=2)
-plt.xlabel("Date", fontsize=12)
-plt.ylabel("Energy (KWh)", fontsize=12)
-plt.title("PV System Daily Energy Production in May 2024 (After Losses) - Serres-C, Greece.", fontsize=14, fontweight='bold')
+plt.figure(figsize=(12, 5))
+plt.plot(may_energy_kwh_actual.index, may_energy_kwh_actual, 'g-', label='Daily Energy Production (kWh)', linewidth=2)
+plt.xlabel("Date", fontsize=16)
+plt.ylabel("Energy (kWh)", fontsize=16)
+plt.title("Daily Energy Production for Serres -C, Greece in May 2024 using SM-EPSM." , fontsize=16)
 plt.legend()
 plt.grid(True, linestyle='--', linewidth=0.5)
 plt.tight_layout()
-plt.savefig("serres_may_2024_with_losses.pdf", format="pdf")
+plt.savefig("SERREC_C_may_2024_with_losses_SM-EPSM.pdf", format="pdf")
 plt.show()
+
+#------------------------------------------------------------------------------
+
+#pvlib
+#validation
+
+import pandas as pd
+import numpy as np
+import pvlib
+import matplotlib.pyplot as plt
+from pvlib.irradiance import get_total_irradiance
+from pvlib.temperature import sapm_cell
+
+# Load CSV data
+file_path = "csv_40.886273_23.912687_fixed_23_180_PT5M.csv"
+df = pd.read_csv(file_path, parse_dates=["period_end"], index_col="period_end")
+
+# Filter data for May only
+df = df[df.index.month == 5]
+
+# Extract necessary weather data
+ghi = df["ghi"]  # Global Horizontal Irradiance (W/m²)
+dni = df["dni"]  # Direct Normal Irradiance (W/m²)
+dhi = df["dhi"]  # Diffuse Horizontal Irradiance (W/m²)
+temp_amb = df["air_temp"]  # Ambient Temperature (°C)
+wind_speed = df["wind_speed_10m"]  # Wind Speed (m/s)
+
+# System Parameters
+tilt = 25  # Panel tilt angle (degrees)
+azimuth = 180  # South-facing panels
+panel_power_max = 390  # W per panel
+system_capacity_kw = 1010.88  # System capacity in kW
+system_capacity_w = system_capacity_kw * 1000
+num_panels = int(system_capacity_w / panel_power_max)
+efficiency_stc = 0.24  # Assuming the panel has 24% efficiency at STC
+temp_coeff = -0.004  # Power temperature coefficient (%/°C)
+inverter_efficiency = 0.99  # Inverter efficiency (99%)
+losses = 1  # Total losses factor (soiling, mismatch, wiring, etc.)
+
+# Calculate POA irradiance
+solar_position = pvlib.solarposition.get_solarposition(df.index, 40.886273, 23.912687)
+poa = get_total_irradiance(
+    surface_tilt=tilt,
+    surface_azimuth=azimuth,
+    dni=dni,
+    ghi=ghi,
+    dhi=dhi,
+    solar_zenith=solar_position["apparent_zenith"],
+    solar_azimuth=solar_position["azimuth"],
+)
+poa_irradiance = poa["poa_global"]
+
+# Cell Temperature Calculation
+temp_cell = sapm_cell(poa_irradiance, temp_amb, wind_speed, -3.47, -0.0594, 3)
+
+# DC Power Output Calculation
+dc_power = poa_irradiance * num_panels * efficiency_stc * (1 + temp_coeff * (temp_cell - 25))
+
+# AC Power Output with Losses
+ac_power = dc_power * inverter_efficiency * losses
+
+df["AC_Power_kW"] = ac_power / 1000  # Convert to kW
+
+# Energy Calculation (5-minute intervals to hourly energy)
+df["Energy_kWh"] = df["AC_Power_kW"].resample('H').mean()  # Hourly energy in kWh
+
+df["Daily_Energy_kWh"] = df["Energy_kWh"].resample('D').sum()  # Daily energy in kWh
+
+# Capacity Factor Calculation
+cf = df["AC_Power_kW"].sum() / (system_capacity_kw * len(df) * 5 / 60)  # 5-minute intervals
+
+print(f"Capacity Factor: {cf:.2%}")
+
+# Set Garamond font
+plt.rcParams["font.family"] = "Garamond"
+
+# Plot Power Output for May and save as PDF
+plt.figure(figsize=(12, 5))
+plt.plot(df.index, df["AC_Power_kW"], label="AC Power (kW)", color='green')
+plt.xlabel("Time")
+plt.ylabel("Power (kW)")
+plt.title("PV System Power Output at 5 minutes for Serres C using pvlib (May 2024)")
+plt.legend()
+plt.grid()
+plt.savefig("power_output_may.pdf", format="pdf")
+plt.show()
+
+# Plot Daily Energy Output for May as a line graph and save as PDF
+plt.figure(figsize=(12, 5))
+plt.plot(df["Daily_Energy_kWh"].dropna().index, df["Daily_Energy_kWh"].dropna(), label="Daily Energy (kWh)", linestyle='-', color='orange')
+plt.xlabel("Date" , fontsize=16)
+plt.ylabel("Energy (kWh)", fontsize=16)
+plt.title("Daily Energy Production for Serres C using pvlib (May 2024)", fontsize=16)
+plt.legend()
+plt.grid()
+plt.savefig("PVLIB_NJAGU_daily_energy_may.pdf", format="pdf")
+plt.show()
+
+# Save results
+df.to_csv("solar_power_output_may.csv")
