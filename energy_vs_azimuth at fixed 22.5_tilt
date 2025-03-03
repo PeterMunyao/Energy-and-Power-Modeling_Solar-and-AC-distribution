@@ -28,6 +28,7 @@ tilt_angle = 22.5
 
 # Energy storage dictionary
 energy_outputs = {}
+yearly_energy_kwh_results = {}
 
 for azimuth in azimuth_angles:
     surface_tilt_rad = np.radians(tilt_angle)
@@ -60,26 +61,44 @@ for azimuth in azimuth_angles:
     df['ac_power'] = df['dc_power'] * 0.85  
     df['scaled_power'] = df['ac_power'] * num_panels  
 
-    # Resample to daily energy production
-    daily_energy_kwh = df['scaled_power'].resample('D').sum() / 1000
-    energy_outputs[azimuth] = daily_energy_kwh
+    # Convert 5-Minute Power to Energy (kWh)
+    df['energy_kwh'] = df['scaled_power'] * (5 / 60) / 1000  # Energy in kWh (5 minutes = 5/60 hour)
+    
+    # Resample to 1440-minute resolution for visibility (24 hours)
+    energy_resampled_kwh = df['energy_kwh'].resample('1440T').sum()  # 1440 minutes = 24 hours
+    energy_outputs[azimuth] = energy_resampled_kwh
 
-# Plot results
+    # Calculate total yearly energy in kWh for each azimuth
+    yearly_energy_kwh = energy_resampled_kwh.sum()
+    yearly_energy_kwh_results[azimuth] = yearly_energy_kwh
+
+# Plot results at 1440-minute resolution with default font
 plt.figure(figsize=(12, 6))
 
+# Plot each azimuth energy production
 for azimuth in azimuth_angles:
-    linestyle = '--' if azimuth in [0, 3, 10, 45, 80, 90, 100, 135, 180, 350] else '-'  # Dotted lines for 60, 80, 90 degrees
+    linestyle = '--' if azimuth in [0, 3, 10, 45, 80, 90, 100, 135, 180, 350] else '-'  # Dotted lines for specific azimuths
     plt.plot(energy_outputs[azimuth].index, energy_outputs[azimuth], linestyle, label=f"Azimuth {azimuth}°")
 
-plt.xlabel("Date")
-plt.ylabel("Energy (kWh)")
-plt.title("Daily Energy Production at Various Azimuth Angles (Tilt = 22.5°)")
+# Set labels and title
+plt.xlabel("Time", fontsize=16)
+plt.ylabel("Energy (kWh)", fontsize=16)
+plt.title("Daily Energy Production at Various Azimuth Angles ( Tilt = 22.5° )", fontsize=16)
 plt.grid(True)
 
 # Adjust legend position
-plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+plt.legend(loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+
+# Add yearly energy output below the legend (smaller font size)
+text_x_position = 1.05
+text_y_position = 0.33  # Adjust this based on your graph's height
+for azimuth, yearly_energy_kwh in yearly_energy_kwh_results.items():
+    plt.text(text_x_position, text_y_position, f"Azimuth {azimuth}°: {yearly_energy_kwh:.2f} kWh", 
+             transform=plt.gca().transAxes, fontsize=10, verticalalignment='bottom')
+    text_y_position -= 0.05  # Slightly adjust y-position for next text
+
 plt.subplots_adjust(right=0.8)  # Shift plot left to fit legend
 
-# Save and show
-plt.savefig("energy_vs_azimuth_22.5_tilt.pdf", format="pdf", bbox_inches="tight")
+# Save and show the plot
+plt.savefig("ENergy_vs_AZIMUTH_22.5_tilt_1440min_resolution.pdf", format="pdf", bbox_inches="tight")
 plt.show()
