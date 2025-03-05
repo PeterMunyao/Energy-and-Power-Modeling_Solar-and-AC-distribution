@@ -143,7 +143,7 @@ ac_conductor_type = input("Enter type of AC conductor (e.g., AAC, ACSR): ")
 ac_load_size = float(input("Enter AC load size in watts (e.g., 5000 for 5 kW): "))
 ac_voltage = float(input("Enter AC voltage in volts (e.g., 240): "))
 percentage_voltage_drop = float(input("Enter allowable voltage drop percentage (e.g., 3): "))
-conductor_length = float(input("Enter conductor length in meters (e.g., 400): "))  # One-way length
+conductor_length = float(input("Enter conductor length in meters, (Route length (e.g., 400)): "))  # One-way length
 power_factor = float(input("Enter the power factor (e.g., 0.8 for residential loads): "))
 ground_impedance = float(input("Enter the maximum ground impedance in ohms (e.g., 10): "))
 
