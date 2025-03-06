@@ -4,14 +4,14 @@ from scipy.optimize import fsolve
 from fpdf import FPDF  # Import the FPDF library
 
 # Define parameters for the microgrid system
-electricity_price = 0.284  # USD per kWh
+electricity_price = 0.08  # USD per kWh
 discount_rate = 0.08        # 8% discount rate
 project_lifetime = 25       # Years
 
 # Component costs (example values)
 data = {
     'Component': ['Solar Panels', 'Battery', 'Inverter', 'DC Conductors'],
-    'Initial_Cost': [11000, 28000, 2500, 3000],  # Example costs in USD
+    'Initial_Cost': [11000, 28000, 2500, 8000],  # Example costs in USD
     'O&M_Cost_Annual': [100, 300, 150, 150],      # Example annual O&M costs
     'Lifespan': [25, 10, 15, 20]                 # Lifespan in years
 }
@@ -30,7 +30,7 @@ annual_om_cost = df['O&M_Cost_Annual'].sum()   # Total annual O&M costs
 tax_relief_amount = initial_investment_after_subsidy * tax_relief_percentage
 
 # Yearly energy production (example value)
-yearly_energy_production = 14329.45  # kWh
+yearly_energy_production = 13712  # kWh
 
 # Calculate annual revenue from selling electricity
 annual_revenue = yearly_energy_production * electricity_price
