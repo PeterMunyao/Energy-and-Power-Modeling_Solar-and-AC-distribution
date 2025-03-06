@@ -191,7 +191,7 @@ print(f"Conductor Resistance (Round Trip): {conductor_resistance:.4f} Ω")  # To
 print(f"Required Conductor Cross-Sectional Area: {conductor_area_mm2:.2f} mm²")  # Conductor size
 print(f"Recommended Breaker Rating: {breaker_rating:.2f} A")  # Recommended breaker size
 print(f"Power Loss in Conductors: {power_loss:.2f} W")  # Power loss
-print(f"Total System Efficiency: {efficiency:.2f}%")  # System efficiency
+print(f"Total AC Network Efficiency: {efficiency:.2f}%")  # System efficiency
 print(f"Ground Fault Current: {ground_fault_current:.2f} A")  # Fault current during grounding faults
-print(f"Residential Breaker Size for TN-C-S System: {residential_breaker_size:.2f} A")  # Ground fault protection breaker
+print(f"Residential Breaker Size for TN-C-S System :kAIC (kiloampere Interrupting Capacity): {residential_breaker_size:.2f} A")  # Ground fault protection breaker
 
