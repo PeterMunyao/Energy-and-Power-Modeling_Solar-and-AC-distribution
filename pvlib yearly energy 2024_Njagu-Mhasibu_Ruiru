@@ -30,7 +30,7 @@ system_capacity_w = system_capacity_kw * 1000
 num_panels = int(system_capacity_w / panel_power_max)
 efficiency_stc = 0.25  # Assuming the panel has 24% efficiency at STC
 temp_coeff = -0.004  # Power temperature coefficient (%/°C)
-inverter_efficiency = 0.97  # Inverter efficiency (87%)
+inverter_efficiency = 0.975  # Inverter efficiency (87%)
 losses = 1  # Total losses factor (soiling, mismatch, wiring, etc.)
 
 # 5. Calculate POA irradiance using `pvlib`
