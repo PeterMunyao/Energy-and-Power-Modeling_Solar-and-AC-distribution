@@ -40,7 +40,7 @@ print(f"System capacity: {system_capacity_kw:.2f} kW")
 
 # 6. Solar Geometry (Simplified - Assumes Fixed Tilt)
 surface_tilt = 22.5  # Tilt of the solar panels (in degrees)
-surface_azimuth = 90  # Azimuth of the solar panels (in degrees, South-facing)
+surface_azimuth = 90  # Azimuth of the solar panels (in degrees, from true north)
 
 # Convert angles to radians for calculations
 surface_tilt_rad = np.radians(surface_tilt)
