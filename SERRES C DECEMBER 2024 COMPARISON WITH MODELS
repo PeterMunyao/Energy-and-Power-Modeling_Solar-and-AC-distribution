@@ -108,7 +108,7 @@ plt.rcParams["font.family"] = "Garamond"
 plt.figure(figsize=(15, 7))
 
 # Increase line width for all plots
-line_width = 3
+line_width = 3.5
 
 # Plot data
 plt.plot(daily_energy_pvlib.index, daily_energy_pvlib, label="PVLIB-Model", linestyle='-', linewidth=line_width, color='orange')
@@ -116,22 +116,29 @@ plt.plot(daily_energy_epsm.index, daily_energy_epsm, label="OSM-MEPS-Model", lin
 plt.plot(pvoutput_df.index, pvoutput_df['Generated_kWh'], label="SERRES C Measured ", linestyle='-', marker='o', linewidth=line_width, markersize=6, color='blue')
 
 # Labels and title with increased font size
-plt.xlabel("Date", fontsize=18)
-plt.ylabel("Daily Energy (kWh)", fontsize=18)
+plt.xlabel("Date", fontsize=20)
+plt.ylabel("Daily Energy (kWh)", fontsize=20)
 plt.title("Serres-C Daily Solar Energy (December 2024): Modelled vs Measured", fontsize=20)
 
-# Legend and grid
-plt.legend(fontsize=14)
-plt.grid(True, linestyle='--', alpha=0.65)
+plt.legend(
+    fontsize=17,
+    loc='upper center',
+    bbox_to_anchor=(0.5, -0.15),  # (x, y) position below the plot
+    ncol=2,                       # number of legend columns (adjust as needed)
+    frameon=False                 # optional: removes the box around the legend
+)
+
 
 # Ticks
-plt.xticks(rotation=0, fontsize=14)
-plt.yticks(fontsize=14)
+plt.xticks(rotation=0, fontsize=18)
+plt.yticks(fontsize=18)
 
 # Layout and save
 plt.tight_layout()
 plt.savefig("SERRES_C_Comparison_PVLIB_OSM-MEPS_PVOutput_1.pdf", format='pdf')
 plt.show()
+
+
 
 --------------------------------
 
