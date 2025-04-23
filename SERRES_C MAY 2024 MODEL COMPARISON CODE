@@ -132,3 +132,36 @@ plt.yticks(fontsize=16)
 plt.tight_layout()
 plt.savefig("SERRES_C_Comparison_PVLIB_OSM-MEPS_PVOutput_2.pdf", format='pdf')
 plt.show()
+
+
+------------------------------------------------
+
+
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import numpy as np
+
+# Convert both series to the same timezone (e.g., UTC) or remove timezone information
+daily_energy_pvlib.index = daily_energy_pvlib.index.tz_localize(None)  # Remove timezone info if any
+daily_energy_epsm.index = daily_energy_epsm.index.tz_localize(None)  # Remove timezone info if any
+pvoutput_df.index = pvoutput_df.index.tz_localize(None)  # Ensure PVOutput dataframe has no timezone info
+
+# Ensure both series have the same index (in case of mismatched timestamps)
+daily_energy_pvlib_aligned = daily_energy_pvlib.reindex(pvoutput_df.index, method='nearest')
+daily_energy_epsm_aligned = daily_energy_epsm.reindex(pvoutput_df.index, method='nearest')
+
+# Error metrics function
+def compute_error_metrics(actual, predicted):
+    mse = mean_squared_error(actual, predicted)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(actual, predicted)
+    r2 = r2_score(actual, predicted)
+    return mse, rmse, mae, r2
+
+# PVLIB vs PVOutput
+mse_pvlib, rmse_pvlib, mae_pvlib, r2_pvlib = compute_error_metrics(pvoutput_df['Generated_kWh'], daily_energy_pvlib_aligned)
+# SM-EPSM vs PVOutput
+mse_epsm, rmse_epsm, mae_epsm, r2_epsm = compute_error_metrics(pvoutput_df['Generated_kWh'], daily_energy_epsm_aligned)
+
+# Print the results
+print(f"PVLIB vs PVOutput_SERRES-C Metrics: MSE = {mse_pvlib:.3f}, RMSE = {rmse_pvlib:.3f}, MAE = {mae_pvlib:.3f}, R² = {r2_pvlib:.3f}")
+print(f"OSM-MEPS vs PVOutput_SERRES-C Metrics: MSE = {mse_epsm:.3f}, RMSE = {rmse_epsm:.3f}, MAE = {mae_epsm:.3f}, R² = {r2_epsm:.3f}")
