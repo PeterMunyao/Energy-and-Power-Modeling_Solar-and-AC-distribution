@@ -1,0 +1,166 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import pvlib
+
+# === Load and prepare satellite-based weather data ===
+file_path = "csv_-25.78950982_28.3069343_fixed_30_0_PT5M.csv"
+df = pd.read_csv(file_path)
+df['period_end'] = pd.to_datetime(df['period_end'])           # Convert timestamps
+df.set_index('period_end', inplace=True)                      # Set time as index
+df = df[df.index.year == 2024]                                # Filter for year 2024 only
+
+# === Ensure required meteorological columns are present ===
+required_columns = ['dni', 'ghi', 'dhi', 'air_temp', 'albedo', 'zenith', 'azimuth',
+                    'cloud_opacity', 'relative_humidity', 'wind_speed_10m']
+for col in required_columns:
+    if col not in df.columns:
+        print(f"Warning: Column '{col}' is missing. Filling with zeros.")
+        df[col] = 0                                            # Fill missing columns with zero
+
+# === System Configuration ===
+tilt = 30                                                     # Tilt angle of the panel in degrees
+azimuth = 0                                                   # Azimuth (0° = North)
+panel_power_max = 400                                         # Panel rating in watts
+inverter_efficiency = 0.92                                    # Inverter efficiency
+temp_coeff = -0.0034                                          # Power loss per °C above 25°C
+stc_irradiance = 1000                                         # Standard irradiance in W/m²
+system_capacity_kw = 17.6
+system_capacity_w = system_capacity_kw * 1000
+num_panels_pvlib = int(system_capacity_w / panel_power_max)   # Number of panels
+inverter_capacity_w = 16000                                   # Total inverter capacity (2 x 8kW)
+shading_hour_start = "16:00"
+shading_hour_end = "17:00"
+
+# === PVLIB Method to compute POA irradiance ===
+solar_position = pvlib.solarposition.get_solarposition(df.index, -25.78950982, 28.3069343)
+
+# Calculate plane of array irradiance using PVLIB
+poa = pvlib.irradiance.get_total_irradiance(
+    surface_tilt=tilt,
+    surface_azimuth=azimuth,
+    dni=df['dni'],
+    ghi=df['ghi'],
+    dhi=df['dhi'],
+    solar_zenith=solar_position['apparent_zenith'],
+    solar_azimuth=solar_position['azimuth']
+)
+poa_irradiance = poa['poa_global']
+
+# Estimate cell temperature using SAPM model
+temp_cell = pvlib.temperature.sapm_cell(
+    poa_irradiance, df['air_temp'], df['wind_speed_10m'], -3.47, -0.0594, 3
+)
+
+# Calculate DC power with temperature correction
+dc_power_pvlib = poa_irradiance * num_panels_pvlib * 0.25 * (1 + temp_coeff * (temp_cell - 25))
+
+# Convert DC to AC power using inverter efficiency
+ac_power_pvlib = dc_power_pvlib * inverter_efficiency
+
+# Limit output by inverter capacity (clipping)
+ac_power_pvlib = np.minimum(ac_power_pvlib, inverter_capacity_w)
+
+# Apply shading losses from 4 PM to 5 PM
+ac_power_pvlib[df.index.indexer_between_time(shading_hour_start, shading_hour_end)] *= 0.99
+
+# Convert power to hourly energy in kWh
+df['pvlib_energy_kWh'] = (ac_power_pvlib / 1000).resample('h').mean()
+daily_energy_pvlib = df['pvlib_energy_kWh'].resample('D').sum()
+
+# === OSM-MEPS Method using basic physical assumptions ===
+panel_area_m2 = 1.96
+available_area_m2 = 52
+num_panels_osm_meps = int(available_area_m2 / panel_area_m2)
+
+# Compute angle of incidence (AOI)
+tilt_rad = np.radians(tilt)
+azimuth_panel_rad = np.radians(azimuth)
+df['azimuth'] = df['azimuth'] % 360
+zenith_rad = np.radians(df['zenith'])
+azimuth_rad = np.radians(df['azimuth'])
+
+aoi = np.degrees(np.arccos(
+    np.cos(zenith_rad) * np.cos(tilt_rad) +
+    np.sin(zenith_rad) * np.sin(tilt_rad) * np.cos(azimuth_rad - azimuth_panel_rad)
+))
+aoi = np.clip(aoi, 0, 180)
+cos_aoi = np.cos(np.radians(aoi))
+cos_aoi[cos_aoi < 0] = 0
+
+# Calculate different components of irradiance
+df['poa_direct'] = df['dni'] * cos_aoi * (1 - df['cloud_opacity'] / 100)
+df['poa_direct'] = df['poa_direct'].clip(lower=0)
+df['poa_diffuse'] = df['dhi'] * (1 + np.cos(tilt_rad)) / 2
+df['poa_sky_diffuse'] = df['ghi'] * df['albedo'] * (1 - np.cos(tilt_rad)) / 2
+df['poa_total'] = df['poa_direct'] + df['poa_diffuse'] + df['poa_sky_diffuse']
+
+# Estimate module temperature from POA and air temperature
+nominal_operating_cell_temp = 45
+df['module_temp'] = nominal_operating_cell_temp + df['poa_total'] / 1000 * (28 - df['air_temp'])
+
+# Calculate DC power and apply temperature and humidity corrections
+df['dc_power'] = panel_power_max * (1 + temp_coeff * (df['module_temp'] - nominal_operating_cell_temp))
+df['dc_power'] *= df['poa_total'] / stc_irradiance
+df['dc_power'] *= (1 - 0.002 * df['relative_humidity'])
+
+# Convert to AC and scale by number of panels
+df['ac_power'] = df['dc_power'] * inverter_efficiency
+df['scaled_power'] = df['ac_power'] * num_panels_osm_meps
+
+# Apply inverter clipping
+df['scaled_power'] = np.minimum(df['scaled_power'], inverter_capacity_w)
+
+# Apply 15% shading loss from 4 PM to 5 PM
+shading_mask = df.index.indexer_between_time(shading_hour_start, shading_hour_end)
+df.iloc[shading_mask, df.columns.get_loc('scaled_power')] *= 0.85
+
+# Apply general system losses
+df['actual_power'] = df['scaled_power'] * (1 - 0.01)
+
+# Convert power to energy in kWh (5-minute intervals)
+df['epsm_energy_kWh'] = df['actual_power'] * (5 / 60) / 1000
+hourly_energy_epsm = df['epsm_energy_kWh'].resample('h').sum()
+daily_energy_epsm = df['epsm_energy_kWh'].resample('D').sum()
+
+# === Load actual measured data from PVOutput ===
+pvoutput_actual = pd.read_csv("vpnt.csv")
+pvoutput_actual['Date'] = pd.to_datetime(pvoutput_actual['Date'], dayfirst=False)
+pvoutput_actual.set_index('Date', inplace=True)
+pvoutput_actual['Generated_kWh'] = pd.to_numeric(pvoutput_actual['Generated_kWh'], errors='coerce')
+pvoutput_actual = pvoutput_actual.dropna()
+
+# === Plot daily energy comparison with grey background ===
+plt.rcParams["font.family"] = "Garamond"
+plt.figure(figsize=(13, 7), facecolor='lightgrey')  # Set outer figure background to light grey
+
+ax = plt.gca()
+ax.set_facecolor('#e6e6e6')  # Set plot area (axes) background to a light grey
+
+# Plot modeled outputs
+plt.plot(daily_energy_pvlib.index, daily_energy_pvlib, label="PVLIB-Model", linestyle='-', linewidth=3, color='orange')
+plt.plot(daily_energy_epsm.index, daily_energy_epsm, label="OSM-MEPS", linestyle='-', linewidth=3, color='green')
+
+# Plot actual measurements if available
+if not pvoutput_actual.empty:
+    measured = pvoutput_actual['Generated_kWh'].dropna()
+    plt.plot(measured.index, measured, label="VPN Technologies Rooftop PV Output Energy (Measured)", linestyle='-', marker='o', linewidth=3, color='blue')
+
+# Axis and title formatting
+plt.xlabel("Date", fontsize=18)
+plt.ylabel("Daily Energy (kWh)", fontsize=18)
+plt.title("VPN Technologies Rooftop Daily Solar Energy (2024): Modeled vs Measured", fontsize=20)
+
+# Legend formatting
+plt.legend(fontsize=16.5, loc='lower center', bbox_to_anchor=(0.5, -0.35), ncol=3)
+
+# Grid and ticks
+plt.grid(True, linestyle='--', alpha=0.95)
+plt.xticks(rotation=0, fontsize=16)
+plt.yticks(fontsize=16)
+
+# Layout and saving
+plt.tight_layout()
+plt.savefig("VPNT_final_SOUTH_AFRICA_Comparison_PVLIB_OSM_MEPS_PVOutput.pdf", format='pdf')
+plt.show()
+
