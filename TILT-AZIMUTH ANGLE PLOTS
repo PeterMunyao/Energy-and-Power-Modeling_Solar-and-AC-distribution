@@ -1,0 +1,488 @@
+TILT-AZIMUTH ANGLE PLOTS
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Set Garamond font
+plt.rcParams["font.family"] = "Garamond"
+plt.rcParams.update({'font.size': 14})
+
+# 1. Load the CSV data (5-minute resolution)
+file_path = 'csv_-34.9599769_138.6414601_fixed_22.5_270_PT5M.csv'
+df = pd.read_csv(file_path)
+df['period_end'] = pd.to_datetime(df['period_end'])
+df.set_index('period_end', inplace=True)
+
+# 2. Extract necessary weather data
+ghi = df["ghi"]
+dni = df["dni"]
+dhi = df["dhi"]
+temp_amb = df["air_temp"]
+wind_speed = df["wind_speed_10m"]
+zenith = df['zenith']
+azimuth = df['azimuth']
+albedo = df['albedo']
+
+# Fixed model parameters
+num_panels = 1             # Number of PV panels
+panel_power_max = 350        # W
+temp_coeff = -0.0045
+inverter_efficiency = 0.95
+nominal_operating_cell_temp = 45  # °C
+
+# Tilt and azimuth combinations
+tilt_angles = [0, 15, 30, 45, 60, 80, 90]
+azimuth_angles = [0, 90, 180, 270, 360]
+
+# Store energy results
+energy_results = {}
+
+# 3. Iterate over tilt and azimuth angles
+for azimuth_angle in azimuth_angles:
+    energy_results[azimuth_angle] = {}
+    
+    for tilt_angle in tilt_angles:
+        # Angle of Incidence (AOI)
+        surface_tilt_rad = np.radians(tilt_angle)
+        surface_azimuth_rad = np.radians(azimuth_angle)
+        azimuth_rad = np.radians(azimuth)
+        zenith_rad = np.radians(zenith)
+
+        aoi = np.degrees(np.arccos(
+            np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
+            np.sin(zenith_rad) * np.sin(surface_tilt_rad) * np.cos(azimuth_rad - surface_azimuth_rad)
+        ))
+        aoi = np.clip(aoi, 0, 90)
+
+        # POA Irradiance
+        poa_direct = dni * np.cos(np.radians(aoi)).clip(lower=0)
+        poa_diffuse = dhi * (1 + np.cos(surface_tilt_rad)) / 2
+        poa_reflected = ghi * albedo * (1 - np.cos(surface_tilt_rad)) / 2
+        poa_total = poa_direct + poa_diffuse + poa_reflected
+
+        # Module temperature
+        module_temp = nominal_operating_cell_temp + poa_total / 800 * (28 - temp_amb)
+
+        # Power calculations
+        panel_power_temp_corrected = panel_power_max * (1 + temp_coeff * (module_temp - nominal_operating_cell_temp))
+        dc_power = panel_power_temp_corrected * (poa_total / 1000)
+        ac_power = dc_power * inverter_efficiency
+        total_power = ac_power * num_panels
+
+        # Aggregate to daily energy in kWh
+        energy_results[azimuth_angle][tilt_angle] = (total_power * (5/60)).resample('D').sum() / 1000  
+
+# 4. Plot energy results
+# 4. Plot energy results
+fig, axes = plt.subplots(len(azimuth_angles), 1, figsize=(15, 12), sharex=True, facecolor='#f0f0f0')
+plt.gca().set_facecolor('#f0f0f0')
+
+# Use a common line collection to gather handles for legend
+line_handles = []
+
+for i, azimuth_angle in enumerate(azimuth_angles):
+    ax = axes[i]
+    ax.set_title(f"Energy Production for Azimuth {azimuth_angle}°", fontsize=18)
+    
+    for tilt_angle in tilt_angles:
+        line, = ax.plot(energy_results[azimuth_angle][tilt_angle], label=f"Tilt {tilt_angle}°", linewidth=2)
+        if i == 0:  # Collect legend handles only once
+            line_handles.append(line)
+    
+    ax.set_ylabel("Daily Energy (kWh)", fontsize=16)
+    ax.grid()
+
+axes[-1].set_xlabel("Date", fontsize=16)
+
+# Add a common legend below all subplots
+fig.legend(handles=line_handles, loc='lower center', ncol=len(tilt_angles), fontsize=12, bbox_to_anchor=(0.5, -0.01))
+
+plt.tight_layout(rect=[0, 0.05, 1, 1])  # Leave space for legend
+plt.savefig("Tilt_Angles_Energy_Production_by_Azimuth_GLEN_SOUTH_HEMI.pdf", format="pdf", bbox_inches='tight')
+plt.show()
+
+
+# 5. Find best/worst/mid-performing tilt per azimuth
+summary_results = {}
+for azimuth_angle in azimuth_angles:
+    daily_energies = {tilt: energy.sum() for tilt, energy in energy_results[azimuth_angle].items()}
+    sorted_energies = sorted(daily_energies.items(), key=lambda x: x[1])
+    
+    summary_results[azimuth_angle] = {
+        'lowest': sorted_energies[0],
+        'middle': sorted_energies[len(sorted_energies) // 2],
+        'highest': sorted_energies[-1]
+    }
+
+# 6. Print summary
+for azimuth_angle, values in summary_results.items():
+    print(f"Azimuth {azimuth_angle}°:")
+    print(f"  Lowest Energy: Tilt {values['lowest'][0]}° with {values['lowest'][1]:.2f} kWh")
+    print(f"  Middle Energy: Tilt {values['middle'][0]}° with {values['middle'][1]:.2f} kWh")
+    print(f"  Highest Energy: Tilt {values['highest'][0]}° with {values['highest'][1]:.2f} kWh")
+    print("-" * 50)
+
+# 7. Optionally save final daily values (optional if analysis only)
+df.to_csv("solar_power_output_tilt_azimuth_analysis_2024.csv")
+
+------------
+
+# 8. Smith chart-style polar plot
+fig = plt.figure(figsize=(10, 8), facecolor='#f0f0f0')
+ax = plt.subplot(111, polar=True, facecolor='#f0f0f0')
+
+# Normalize azimuths to radians
+azimuth_rad_all = np.radians(azimuth_angles)
+
+# Build 2D mesh for polar plot
+azimuth_grid, tilt_grid = np.meshgrid(azimuth_rad_all, tilt_angles)
+energy_grid = np.zeros_like(azimuth_grid, dtype=float)
+
+# Populate energy grid
+for i, tilt in enumerate(tilt_angles):
+    for j, azim in enumerate(azimuth_angles):
+        energy_grid[i, j] = energy_results[azim][tilt].sum()
+
+# Plot
+c = ax.contourf(azimuth_grid, tilt_grid, energy_grid, 20, cmap="plasma")
+cb = fig.colorbar(c, ax=ax, pad=0.1, orientation="vertical")
+cb.set_label("Total Energy (kWh)", fontsize=14)
+
+# Axis labels and formatting
+ax.set_theta_zero_location("N")
+ax.set_theta_direction(-1)
+ax.set_title("Smith-style Polar Map of Solar Energy Output\n(Adelaide 2024)", va='bottom', fontsize=16)
+ax.set_rlabel_position(135)
+ax.set_xticks(np.radians([0, 90, 180, 270]))
+ax.set_xticklabels(['North', 'East', 'South', 'West'])
+ax.set_yticks(tilt_angles)
+ax.set_yticklabels([f"{t}°" for t in tilt_angles])
+
+plt.savefig("Polar_Solar_Energy_Map_Adelaide.pdf", format="pdf", bbox_inches="tight")
+plt.show()
+---------------
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Set Garamond font
+plt.rcParams["font.family"] = "Garamond"
+plt.rcParams.update({'font.size': 14})
+
+# 1. Load the CSV data (5-minute resolution)
+file_path = 'csv_40.886273_23.912687_fixed_23_180_PT5M.csv'
+df = pd.read_csv(file_path)
+df['period_end'] = pd.to_datetime(df['period_end'])
+df.set_index('period_end', inplace=True)
+
+# 2. Extract necessary weather data
+ghi = df["ghi"]
+dni = df["dni"]
+dhi = df["dhi"]
+temp_amb = df["air_temp"]
+wind_speed = df["wind_speed_10m"]
+zenith = df['zenith']
+azimuth = df['azimuth']
+albedo = df['albedo']
+
+# Fixed model parameters
+num_panels = 1            # Number of PV panels
+panel_power_max = 390      # W
+temp_coeff = -0.0045
+inverter_efficiency = 0.95
+nominal_operating_cell_temp = 45  # °C
+
+# Tilt and azimuth combinations
+tilt_angles = [0, 15, 30, 45, 60, 80, 90]
+azimuth_angles = [0, 90, 180, 270, 360]
+
+# Store energy results
+energy_results = {}
+
+# 3. Iterate over tilt and azimuth angles
+for azimuth_angle in azimuth_angles:
+    energy_results[azimuth_angle] = {}
+    
+    for tilt_angle in tilt_angles:
+        # Angle of Incidence (AOI)
+        surface_tilt_rad = np.radians(tilt_angle)
+        surface_azimuth_rad = np.radians(azimuth_angle)
+        azimuth_rad = np.radians(azimuth)
+        zenith_rad = np.radians(zenith)
+
+        aoi = np.degrees(np.arccos(
+            np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
+            np.sin(zenith_rad) * np.sin(surface_tilt_rad) * np.cos(azimuth_rad - surface_azimuth_rad)
+        ))
+        aoi = np.clip(aoi, 0, 90)
+
+        # POA Irradiance
+        poa_direct = dni * np.cos(np.radians(aoi)).clip(lower=0)
+        poa_diffuse = dhi * (1 + np.cos(surface_tilt_rad)) / 2
+        poa_reflected = ghi * albedo * (1 - np.cos(surface_tilt_rad)) / 2
+        poa_total = poa_direct + poa_diffuse + poa_reflected
+
+        # Module temperature
+        module_temp = nominal_operating_cell_temp + poa_total / 800 * (28 - temp_amb)
+
+        # Power calculations
+        panel_power_temp_corrected = panel_power_max * (1 + temp_coeff * (module_temp - nominal_operating_cell_temp))
+        dc_power = panel_power_temp_corrected * (poa_total / 1000)
+        ac_power = dc_power * inverter_efficiency
+        total_power = ac_power * num_panels
+
+        # Aggregate to daily energy in kWh
+        energy_results[azimuth_angle][tilt_angle] = (total_power * (5/60)).resample('D').sum() / 1000  
+
+# 4. Plot energy results
+# 4. Plot energy results
+fig, axes = plt.subplots(len(azimuth_angles), 1, figsize=(15, 12), sharex=True, facecolor='#f0f0f0')
+plt.gca().set_facecolor('#f0f0f0')
+
+# Use a common line collection to gather handles for legend
+line_handles = []
+
+for i, azimuth_angle in enumerate(azimuth_angles):
+    ax = axes[i]
+    ax.set_title(f"Energy Production for Azimuth {azimuth_angle}°", fontsize=18)
+    
+    for tilt_angle in tilt_angles:
+        line, = ax.plot(energy_results[azimuth_angle][tilt_angle], label=f"Tilt {tilt_angle}°", linewidth=2)
+        if i == 0:  # Collect legend handles only once
+            line_handles.append(line)
+    
+    ax.set_ylabel("Daily Energy (kWh)", fontsize=16)
+    ax.grid()
+
+axes[-1].set_xlabel("Date", fontsize=16)
+
+# Add a common legend below all subplots
+fig.legend(handles=line_handles, loc='lower center', ncol=len(tilt_angles), fontsize=12, bbox_to_anchor=(0.5, -0.01))
+
+plt.tight_layout(rect=[0, 0.05, 1, 1])  # Leave space for legend
+plt.savefig("Tilt_Angles_Energy_Production_by_Azimuth_serres_C_NORTH_HEMI.pdf", format="pdf", bbox_inches='tight')
+plt.show()
+
+
+# 5. Find best/worst/mid-performing tilt per azimuth
+summary_results = {}
+for azimuth_angle in azimuth_angles:
+    daily_energies = {tilt: energy.sum() for tilt, energy in energy_results[azimuth_angle].items()}
+    sorted_energies = sorted(daily_energies.items(), key=lambda x: x[1])
+    
+    summary_results[azimuth_angle] = {
+        'lowest': sorted_energies[0],
+        'middle': sorted_energies[len(sorted_energies) // 2],
+        'highest': sorted_energies[-1]
+    }
+
+# 6. Print summary
+for azimuth_angle, values in summary_results.items():
+    print(f"Azimuth {azimuth_angle}°:")
+    print(f"  Lowest Energy: Tilt {values['lowest'][0]}° with {values['lowest'][1]:.2f} kWh")
+    print(f"  Middle Energy: Tilt {values['middle'][0]}° with {values['middle'][1]:.2f} kWh")
+    print(f"  Highest Energy: Tilt {values['highest'][0]}° with {values['highest'][1]:.2f} kWh")
+    print("-" * 50)
+
+# 7. Optionally save final daily values (optional if analysis only)
+df.to_csv("solar_power_output_tilt_azimuth_analysis_2_2024.csv")
+------------------------
+
+# 8. Smith chart-style polar plot
+fig = plt.figure(figsize=(10, 8), facecolor='#f0f0f0')
+ax = plt.subplot(111, polar=True, facecolor='#f0f0f0')
+
+# Normalize azimuths to radians
+azimuth_rad_all = np.radians(azimuth_angles)
+
+# Build 2D mesh for polar plot
+azimuth_grid, tilt_grid = np.meshgrid(azimuth_rad_all, tilt_angles)
+energy_grid = np.zeros_like(azimuth_grid, dtype=float)
+
+# Populate energy grid
+for i, tilt in enumerate(tilt_angles):
+    for j, azim in enumerate(azimuth_angles):
+        energy_grid[i, j] = energy_results[azim][tilt].sum()
+
+# Plot
+c = ax.contourf(azimuth_grid, tilt_grid, energy_grid, 20, cmap="plasma")
+cb = fig.colorbar(c, ax=ax, pad=0.1, orientation="vertical")
+cb.set_label("Total Energy (kWh)", fontsize=14)
+
+# Axis labels and formatting
+ax.set_theta_zero_location("N")
+ax.set_theta_direction(-1)
+ax.set_title("Smith-style Polar Map of Solar Energy Output\n(Serres-C, Dec 2024)", va='bottom', fontsize=16)
+ax.set_rlabel_position(135)
+ax.set_xticks(np.radians([0, 90, 180, 270]))
+ax.set_xticklabels(['North', 'East', 'South', 'West'])
+ax.set_yticks(tilt_angles)
+ax.set_yticklabels([f"{t}°" for t in tilt_angles])
+
+plt.savefig("Polar_Solar_Energy_Map_Serres_C.pdf", format="pdf", bbox_inches="tight")
+plt.show()
+-------------------------------------
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Set Garamond font
+plt.rcParams["font.family"] = "Garamond"
+plt.rcParams.update({'font.size': 14})
+
+# 1. Load the CSV data (5-minute resolution)
+file_path = 'csv_-0.085477_34.718851_fixed_23_0_PT5M.csv'
+df = pd.read_csv(file_path)
+df['period_end'] = pd.to_datetime(df['period_end'])
+df.set_index('period_end', inplace=True)
+
+# 2. Extract necessary weather data
+ghi = df["ghi"]
+dni = df["dni"]
+dhi = df["dhi"]
+temp_amb = df["air_temp"]
+wind_speed = df["wind_speed_10m"]
+zenith = df['zenith']
+azimuth = df['azimuth']
+albedo = df['albedo']
+
+# Fixed model parameters
+num_panels = 1            # Number of PV panels
+panel_power_max = 450     # W
+temp_coeff = -0.0045
+inverter_efficiency = 0.95
+nominal_operating_cell_temp = 45  # °C
+
+# Tilt and azimuth combinations
+tilt_angles = [0, 15, 30, 45, 60, 80, 90]
+azimuth_angles = [0, 90, 180, 270, 360]
+
+# Store energy results
+energy_results = {}
+
+# 3. Iterate over tilt and azimuth angles
+for azimuth_angle in azimuth_angles:
+    energy_results[azimuth_angle] = {}
+    
+    for tilt_angle in tilt_angles:
+        # Angle of Incidence (AOI)
+        surface_tilt_rad = np.radians(tilt_angle)
+        surface_azimuth_rad = np.radians(azimuth_angle)
+        azimuth_rad = np.radians(azimuth)
+        zenith_rad = np.radians(zenith)
+
+        aoi = np.degrees(np.arccos(
+            np.cos(zenith_rad) * np.cos(surface_tilt_rad) +
+            np.sin(zenith_rad) * np.sin(surface_tilt_rad) * np.cos(azimuth_rad - surface_azimuth_rad)
+        ))
+        aoi = np.clip(aoi, 0, 90)
+
+        # POA Irradiance
+        poa_direct = dni * np.cos(np.radians(aoi)).clip(lower=0)
+        poa_diffuse = dhi * (1 + np.cos(surface_tilt_rad)) / 2
+        poa_reflected = ghi * albedo * (1 - np.cos(surface_tilt_rad)) / 2
+        poa_total = poa_direct + poa_diffuse + poa_reflected
+
+        # Module temperature
+        module_temp = nominal_operating_cell_temp + poa_total / 800 * (28 - temp_amb)
+
+        # Power calculations
+        panel_power_temp_corrected = panel_power_max * (1 + temp_coeff * (module_temp - nominal_operating_cell_temp))
+        dc_power = panel_power_temp_corrected * (poa_total / 1000)
+        ac_power = dc_power * inverter_efficiency
+        total_power = ac_power * num_panels
+
+        # Aggregate to daily energy in kWh
+        energy_results[azimuth_angle][tilt_angle] = (total_power * (5/60)).resample('D').sum() / 1000  
+
+# 4. Plot energy results
+# 4. Plot energy results
+fig, axes = plt.subplots(len(azimuth_angles), 1, figsize=(15, 12), sharex=True, facecolor='#f0f0f0')
+plt.gca().set_facecolor('#f0f0f0')
+
+# Use a common line collection to gather handles for legend
+line_handles = []
+
+for i, azimuth_angle in enumerate(azimuth_angles):
+    ax = axes[i]
+    ax.set_title(f"Energy Production for Azimuth {azimuth_angle}°", fontsize=18)
+    
+    for tilt_angle in tilt_angles:
+        line, = ax.plot(energy_results[azimuth_angle][tilt_angle], label=f"Tilt {tilt_angle}°", linewidth=2)
+        if i == 0:  # Collect legend handles only once
+            line_handles.append(line)
+    
+    ax.set_ylabel("Daily Energy (kWh)", fontsize=16)
+    ax.grid()
+
+axes[-1].set_xlabel("Date", fontsize=16)
+
+# Add a common legend below all subplots
+fig.legend(handles=line_handles, loc='lower center', ncol=len(tilt_angles), fontsize=12, bbox_to_anchor=(0.5, -0.01))
+
+plt.tight_layout(rect=[0, 0.05, 1, 1])  # Leave space for legend
+plt.savefig("Tilt_Angles_Energy_Production_by_Azimuth_EQUATOR.pdf", format="pdf", bbox_inches='tight')
+plt.show()
+
+
+# 5. Find best/worst/mid-performing tilt per azimuth
+summary_results = {}
+for azimuth_angle in azimuth_angles:
+    daily_energies = {tilt: energy.sum() for tilt, energy in energy_results[azimuth_angle].items()}
+    sorted_energies = sorted(daily_energies.items(), key=lambda x: x[1])
+    
+    summary_results[azimuth_angle] = {
+        'lowest': sorted_energies[0],
+        'middle': sorted_energies[len(sorted_energies) // 2],
+        'highest': sorted_energies[-1]
+    }
+
+# 6. Print summary
+for azimuth_angle, values in summary_results.items():
+    print(f"Azimuth {azimuth_angle}°:")
+    print(f"  Lowest Energy: Tilt {values['lowest'][0]}° with {values['lowest'][1]:.2f} kWh")
+    print(f"  Middle Energy: Tilt {values['middle'][0]}° with {values['middle'][1]:.2f} kWh")
+    print(f"  Highest Energy: Tilt {values['highest'][0]}° with {values['highest'][1]:.2f} kWh")
+    print("-" * 50)
+
+# 7. Optionally save final daily values (optional if analysis only)
+df.to_csv("solar_power_output_tilt_azimuth_analysis_EQUATOR_2024.csv")
+----------------------------------
+# 8. Smith chart-style polar plot
+fig = plt.figure(figsize=(10, 8), facecolor='#f0f0f0')
+ax = plt.subplot(111, polar=True, facecolor='#f0f0f0')
+
+# Normalize azimuths to radians
+azimuth_rad_all = np.radians(azimuth_angles)
+
+# Build 2D mesh for polar plot
+azimuth_grid, tilt_grid = np.meshgrid(azimuth_rad_all, tilt_angles)
+energy_grid = np.zeros_like(azimuth_grid, dtype=float)
+
+# Populate energy grid
+for i, tilt in enumerate(tilt_angles):
+    for j, azim in enumerate(azimuth_angles):
+        energy_grid[i, j] = energy_results[azim][tilt].sum()
+
+# Plot
+c = ax.contourf(azimuth_grid, tilt_grid, energy_grid, 20, cmap="plasma")
+cb = fig.colorbar(c, ax=ax, pad=0.1, orientation="vertical")
+cb.set_label("Total Energy (kWh)", fontsize=14)
+
+# Axis labels and formatting
+ax.set_theta_zero_location("N")
+ax.set_theta_direction(-1)
+ax.set_title("Smith-style Polar Map of Solar Energy Output\n(EQUATOR 2024)", va='bottom', fontsize=16)
+ax.set_rlabel_position(135)
+ax.set_xticks(np.radians([0, 90, 180, 270]))
+ax.set_xticklabels(['North', 'East', 'South', 'West'])
+ax.set_yticks(tilt_angles)
+ax.set_yticklabels([f"{t}°" for t in tilt_angles])
+
+plt.savefig("Polar_Solar_Energy_Map_EQUATOR.pdf", format="pdf", bbox_inches="tight")
+plt.show()
+---------------------------------
+
