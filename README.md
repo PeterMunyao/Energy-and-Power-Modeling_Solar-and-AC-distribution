@@ -20,10 +20,9 @@ The project includes:
 
 ## OSM-MEPS (Open Source Modeling Method for Energy and Power Systems)
 
-[OSM-MEPS Method Overview]
+[OSM-MEPS Method Overview](OSM-MEPS_IMAGE.JPG)
 
 <p align="center">
-  <img src="OSM-MEPS_IMAGE.JPG" width="600"/>
   <br>
   <em>Figure 1: Overview of the OSM-MEPS with its overarching frameworks.</em>
 </p>
@@ -32,10 +31,9 @@ The project includes:
 
 Below is the workflow illustrating how the model integrates data, processes, and simulations from input to output.
 
-[OSM-MEPS Workflow]
+[OSM-MEPS Workflow](WORKFLOW-OSM-MEPS.JPG)
 
 <p align="center">
-  <img src="WORKFLOW-OSM-MEPS.JPG" width="600"/>
   <br>
   <em>Figure 2: Workflow of the OSM-MEPS model from solar PV modeling.</em>
 </p>
