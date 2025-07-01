@@ -20,7 +20,7 @@ The project includes:
 
 ## OSM-MEPS Modeling Framework
 
-![OSM-MEPS Method Overview](OSM-MEPS_IMAGE.JPG)
+![OSM-MEPS Method Overview]
 
 <p align="center">
   <img src="OSM-MEPS_IMAGE.JPG" width="600"/>
@@ -32,7 +32,7 @@ The project includes:
 
 Below is the workflow illustrating how the model integrates data, processes, and simulations from input to output.
 
-![OSM-MEPS Workflow](WORKFLOW-OSM-MEPS.JPG)
+![OSM-MEPS Workflow]
 
 <p align="center">
   <img src="WORKFLOW-OSM-MEPS.JPG" width="600"/>
