@@ -35,7 +35,7 @@ Below is the workflow illustrating how the model integrates data, processes, and
 [OSM-MEPS Workflow]
 
 <p align="center">
-  <img src="WORKFLOW-OSM-MEPS.JPG" width="850"/>
+  <img src="WORKFLOW-OSM-MEPS.JPG" width="800"/>
   <br>
   <em>Figure 2: Workflow of the OSM-MEPS model from solar PV modeling.</em>
 </p>
