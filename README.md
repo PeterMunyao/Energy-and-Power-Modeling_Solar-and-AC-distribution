@@ -18,24 +18,24 @@ The project includes:
 - NumPy, Pandas, Matplotlib, SciPy
 - Jupyter Notebook (optional for interactive exploration)
 
-## OSM-MEPS Modeling Framework
+## OSM-MEPS (Open Source Modeling Method for Energy and Power Systems)
 
-![OSM-MEPS Method Overview]
+[OSM-MEPS Method Overview]
 
 <p align="center">
   <img src="OSM-MEPS_IMAGE.JPG" width="600"/>
   <br>
-  <em>Figure 1: Overview of the OSM-MEPS hybrid modeling framework.</em>
+  <em>Figure 1: Overview of the OSM-MEPS with its overarching frameworks.</em>
 </p>
 
 ## OSM-MEPS Workflow
 
 Below is the workflow illustrating how the model integrates data, processes, and simulations from input to output.
 
-![OSM-MEPS Workflow]
+[OSM-MEPS Workflow]
 
 <p align="center">
   <img src="WORKFLOW-OSM-MEPS.JPG" width="600"/>
   <br>
-  <em>Figure 2: Workflow of the OSM-MEPS model from data input to output analysis.</em>
+  <em>Figure 2: Workflow of the OSM-MEPS model from solar PV modeling.</em>
 </p>
