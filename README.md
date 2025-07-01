@@ -25,6 +25,7 @@ The project includes:
 <p align="center">
   <br>
   <img src="OSM-MEPS_IMAGE.JPG" width="700"/>
+  
   <em>Figure 1: Overview of the OSM-MEPS with its overarching frameworks.</em>
 </p>
 
@@ -36,7 +37,8 @@ Below is the workflow illustrating how the model integrates data, processes, and
 
 <p align="center">
   <br>
-  <img src="WORKFLOW-OSM-MEPS.JPG" width="900"/>
+  <img src="WORKFLOW-OSM-MEPS.JPG" width="800"/>
+  
   <em>Figure 2: Workflow of the OSM-MEPS model from solar PV modeling.</em>
 </p>
 
