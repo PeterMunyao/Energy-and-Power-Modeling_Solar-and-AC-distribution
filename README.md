@@ -40,6 +40,6 @@ Below is the workflow illustrating how the model integrates data, processes, and
   <em>Figure 2: Workflow of the OSM-MEPS model from solar PV modeling.</em>
 </p>
 
-Contact
+## Contact
 
 If you have any questions, suggestions, or would like to collaborate, feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/peter-munyao-3251b3a4/).
