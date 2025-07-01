@@ -1,7 +1,7 @@
 # OSM-MEPS: Solar PV
 
 This repository contains code, data and documentation for the systematic open source modeling method for energy and power system modeling focused on solar photovoltaic (PV) generation. 
-It supports analysis, simulation and visualization of energy yield for validation using open-source tools such as Python and PVLIB, and site measured data from https://pvoutput.org/list.jsp?df=20241201&dt=20241231&id=84471&sid=77748&t=m&v=0.
+It supports analysis, simulation and visualization of energy yield for validation using open-source tools such as Python and PVLIB and site measured data from https://pvoutput.org/list.jsp?df=20241201&dt=20241231&id=84471&sid=77748&t=m&v=0.
 
 ## Overview
 
