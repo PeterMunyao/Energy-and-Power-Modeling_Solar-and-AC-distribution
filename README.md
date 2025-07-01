@@ -6,7 +6,7 @@ It supports analysis, simulation and visualization of energy yield for validatio
 ## Overview
 
 The project includes:
-- **OSM-MEPS** (Open Source Modeling Method for Energy and Power Systems) model, derived from key steps in modeling energy and power systems, together with an overarching framework that combines first-principles thinking, the scientific method and engineering design.
+- **OSM-MEPS** (Open Source Modeling Method for Energy and Power Systems) model, derived from key steps in energy and power systems modeling and its overarching frameworks that combines first-principles thinking, the scientific method and engineering design.
 - High-resolution solar PV simulations using meteorological inputs such as GHI, DNI, temperature and relative humidity.
 - Comparative analysis with PVLIB model and real world solar PV energy data across multiple sites (e.g., Greece, South Africa, Kenya).
 - Energy yield estimation, angle of incidence modeling and tilt-azimuth optimization.
