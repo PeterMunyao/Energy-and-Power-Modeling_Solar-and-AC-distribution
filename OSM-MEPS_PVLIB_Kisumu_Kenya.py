@@ -1,3 +1,5 @@
+#Medium to Heavy SHADING_CASE OF Kisumu, Kenya
+
 import pandas as pd
 import numpy as np
 import pvlib
