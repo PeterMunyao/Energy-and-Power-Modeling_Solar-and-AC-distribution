@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 #ENSURE ALL CSV HAVE SAME COLUMN HEADINGS FOR COMPARISON INTEGRITY
+#epsm here stands for OSM-MEPS
 
 # Load your three datasets (replace with actual loading if not already loaded)
 # daily_energy_pvlib = pd.read_csv("pvlib_output.csv", index_col=0, parse_dates=True)
