@@ -54,7 +54,7 @@ temp_cell = sapm_cell(poa_irradiance, temp_amb, wind_speed, -3.47, -0.0594, 3)
 #dc_power = poa_irradiance * num_panels * efficiency_stc * (1 + temp_coeff * (temp_cell - 25))
 dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max * (1 + temp_coeff * (temp_cell - 25))
 
-ac_power = dc_power * inverter_efficiency * losses
+ac_power = dc_power_pvlib * inverter_efficiency * losses
 
 df["AC_Power_kW_pvlib"] = ac_power / 1000
 df["Energy_kWh_pvlib"] = df["AC_Power_kW_pvlib"].resample('h').mean()
