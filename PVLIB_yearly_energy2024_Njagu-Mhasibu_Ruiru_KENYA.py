@@ -53,8 +53,8 @@ poa_irradiance = poa["poa_global"]
 temp_cell = sapm_cell(poa_irradiance, temp_amb, wind_speed, -3.47, -0.0594, 3)
 
 # 7. DC Power Output Calculation
-dc_power = poa_irradiance * num_panels * efficiency_stc * (1 + temp_coeff * (temp_cell - 25))
-
+#old line: dc_power = poa_irradiance * num_panels * efficiency_stc * (1 + temp_coeff * (temp_cell - 25))
+dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max * (1 + temp_coeff * (temp_cell - 25))
 # 8. AC Power Output with Losses
 ac_power = dc_power * inverter_efficiency * losses
 
