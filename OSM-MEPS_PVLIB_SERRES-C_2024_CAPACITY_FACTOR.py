@@ -160,7 +160,7 @@ dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max 
 #dc_power = poa_irradiance * num_panels * efficiency_stc * (1 + temp_coeff * (temp_cell - 25))
 
 # AC Power Output with Losses
-ac_power = dc_power * inverter_efficiency * losses
+ac_power = dc_power_pvlib * inverter_efficiency * losses
 
 df["AC_Power_kW"] = ac_power / 1000  # Convert to kW
 
