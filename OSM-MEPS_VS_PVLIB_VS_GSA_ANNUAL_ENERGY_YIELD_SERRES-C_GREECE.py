@@ -49,7 +49,7 @@ temp_cell = pvlib.temperature.sapm_cell(
     poa_irradiance, df['air_temp'], df['wind_speed_10m'], -3.47, -0.0594, 3
 )
 
-#old line: dc_power_pvlib = poa_irradiance * num_panels * 0.25 * (1 + temp_coeff * (temp_cell - 25))
+
 dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max * (1 + temp_coeff * (temp_cell - 25))
 ac_power_pvlib = dc_power_pvlib * inverter_efficiency
 df['pvlib_energy_kWh'] = (ac_power_pvlib / 1000).resample('H').mean()
