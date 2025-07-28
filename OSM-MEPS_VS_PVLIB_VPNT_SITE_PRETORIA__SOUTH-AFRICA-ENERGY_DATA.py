@@ -54,8 +54,8 @@ temp_cell = pvlib.temperature.sapm_cell(
 )
 
 # Calculate DC power with temperature correction
-dc_power_pvlib = poa_irradiance * num_panels_pvlib * 0.25 * (1 + temp_coeff * (temp_cell - 25))
-
+#old line: dc_power_pvlib = poa_irradiance * num_panels_pvlib * 0.25 * (1 + temp_coeff * (temp_cell - 25))
+dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max * (1 + temp_coeff * (temp_cell - 25))
 # Convert DC to AC power using inverter efficiency
 ac_power_pvlib = dc_power_pvlib * inverter_efficiency
 
