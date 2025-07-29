@@ -77,14 +77,15 @@ df['poa_sky_diffuse'] = df['ghi'] * df['albedo'] * (1 - np.cos(tilt_rad)) / 2
 df['poa_total'] = df['poa_direct'] + df['poa_diffuse'] + df['poa_sky_diffuse']
 
 nominal_operating_cell_temp = 45
+
 df['module_temp'] = nominal_operating_cell_temp + df['poa_total'] / 800 * (28 - df['air_temp'])
 
-df['dc_power'] = panel_power_max * (1 + temp_coeff * (df['module_temp'] - nominal_operating_cell_temp))
+df['dc_power'] = panel_power_max * (1 + temp_coeff_epsm * (df['module_temp'] - nominal_operating_cell_temp))
 df['dc_power'] *= df['poa_total'] / stc_irradiance
-df['dc_power'] *= (1 - 0.0005 * df['relative_humidity'])
+df['dc_power'] *= (1 - 0.0005 * df['relative_humidity']) #Environmental derating (humidity)
 df['ac_power'] = df['dc_power'] * inverter_efficiency_epsm
 df['scaled_power'] = df['ac_power'] * num_panels
-df['actual_power'] = df['scaled_power'] * (1 - 0.0025) * (1 - 0.0025)
+df['actual_power'] = df['scaled_power'] * (1 - 0.10) #Post-system empirical loss factors (like soiling, cables, mismatch)
 
 df['epsm_energy_kWh'] = df['actual_power'].resample('H').mean() / 1000
 daily_energy_epsm = df['epsm_energy_kWh'].resample('D').sum()
