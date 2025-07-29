@@ -9,6 +9,7 @@ df = pd.read_csv(file_path)
 df['period_end'] = pd.to_datetime(df['period_end'])
 df.set_index('period_end', inplace=True)
 
+
 # === Filter for the full year 2024 ===
 df = df[df.index.year == 2024]
 
@@ -49,7 +50,7 @@ temp_cell = pvlib.temperature.sapm_cell(
     poa_irradiance, df['air_temp'], df['wind_speed_10m'], -3.47, -0.0594, 3
 )
 
-#old line: dc_power_pvlib = poa_irradiance * num_panels * 0.25 * (1 + temp_coeff * (temp_cell - 25))
+#dc_power_pvlib = poa_irradiance * num_panels * 0.25 * (1 + temp_coeff * (temp_cell - 25))
 dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max * (1 + temp_coeff * (temp_cell - 25))
 ac_power_pvlib = dc_power_pvlib * inverter_efficiency
 df['pvlib_energy_kWh'] = (ac_power_pvlib / 1000).resample('h').mean()
@@ -98,6 +99,11 @@ pvoutput_actual.set_index('Date', inplace=True)
 pvoutput_actual['Generated_kWh'] = pd.to_numeric(pvoutput_actual['Generated_kWh'], errors='coerce')
 pvoutput_actual = pvoutput_actual.dropna()
 
+# Ensure all indices are tz-naive
+pvoutput_actual.index = pvoutput_actual.index.tz_localize(None)
+daily_energy_pvlib.index = daily_energy_pvlib.index.tz_localize(None)
+daily_energy_epsm.index = daily_energy_epsm.index.tz_localize(None)
+
 # === Plot: Model vs PVOutput Daily Energy ===
 plt.rcParams["font.family"] = "Garamond"
 
@@ -137,76 +143,41 @@ ax.tick_params(axis='both', labelsize=15)
 
 # Layout and save
 plt.tight_layout()
-plt.savefig("367_Glen_Osmond_Final_Rooftop_PV_Output_Energy.pdf", format='pdf', facecolor=fig.get_facecolor())
+plt.savefig("Figure_27.pdf", format='pdf', facecolor=fig.get_facecolor())
 
 # Show plot
 plt.show()
 
+#----------------------------------------------------------------
+#---------------------ERROR--METRICS-----------------------------
 
-#------------------------
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+import numpy as np
+
+# Align measured and modeled data by index (dates)
+aligned = pd.concat([
+    pvoutput_actual['Generated_kWh'].rename('Measured'),
+    daily_energy_pvlib.rename('PVLIB'),
+    daily_energy_epsm.rename('OSM-MEPS')
+], axis=1).dropna()
 
 
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+# === Metrics for PVLIB model ===
+r2_pvlib = r2_score(aligned['Measured'], aligned['PVLIB'])
+rmse_pvlib = np.sqrt(mean_squared_error(aligned['Measured'], aligned['PVLIB']))
+mae_pvlib = mean_absolute_error(aligned['Measured'], aligned['PVLIB'])
 
-# Align time indexes
-measured = pvoutput_actual['Generated_kWh'].dropna()
-common_index = measured.index.intersection(daily_energy_pvlib.index)
+print("=== PVLIB Model vs Measured ===")
+print(f"R²:   {r2_pvlib:.4f}")
+print(f"RMSE: {rmse_pvlib:.2f} kWh")
+print(f"MAE:  {mae_pvlib:.2f} kWh\n")
 
-# Extract aligned series
-measured = measured[common_index]
-pvlib_pred = daily_energy_pvlib[common_index]
-epsm_pred = daily_energy_epsm[common_index]
+# === Metrics for OSM-MEPS model ===
+r2_epsm = r2_score(aligned['Measured'], aligned['OSM-MEPS'])
+rmse_epsm = np.sqrt(mean_squared_error(aligned['Measured'], aligned['OSM-MEPS']))
+mae_epsm = mean_absolute_error(aligned['Measured'], aligned['OSM-MEPS'])
 
-# === Define function to calculate error metrics ===
-def compute_errors(true, pred):
-    mae = mean_absolute_error(true, pred)
-    rmse = np.sqrt(mean_squared_error(true, pred))
-    mbe = np.mean(pred - true)
-    r2 = r2_score(true, pred)
-    return mae, rmse, mbe, r2
-
-# Calculate for each model
-pvlib_errors = compute_errors(measured, pvlib_pred)
-epsm_errors = compute_errors(measured, epsm_pred)
-
-# Prepare for plotting
-metrics = ['MAE', 'RMSE', 'MBE', 'R²']
-pvlib_values = pvlib_errors
-epsm_values = epsm_errors
-
-x = np.arange(len(metrics))
-width = 0.35
-
-# === Plot Error Metrics ===
-fig, ax = plt.subplots(figsize=(11, 6), facecolor='#f0f0f0')
-ax.set_facecolor('#f0f0f0')
-
-bar1 = ax.bar(x - width/2, pvlib_values, width, label='PVLIB-Model', color='orange')
-bar2 = ax.bar(x + width/2, epsm_values, width, label='OSM-MEPS Model', color='green')
-# === Print the error metric values ===
-print("Error Metrics Comparison (Model vs Measured PVOutput)")
-print("-" * 60)
-print(f"{'Metric':<10} | {'PVLIB-Model':>12} | {'OSM-MEPS Model':>15}")
-print("-" * 60)
-for i, metric in enumerate(metrics):
-    print(f"{metric:<10} | {pvlib_values[i]:>12.3f} | {epsm_values[i]:>15.3f}")
-print("-" * 60)
-
-# Annotate bars
-for bars in [bar1, bar2]:
-    for bar in bars:
-        height = bar.get_height()
-        ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 3), textcoords="offset points", ha='center', fontsize=12)
-
-# Labels
-ax.set_ylabel('Error Value', fontsize=16)
-ax.set_title('Model Error Metrics vs Measured Daily PVOutput (2024)', fontsize=18)
-ax.set_xticks(x)
-ax.set_xticklabels(metrics, fontsize=15)
-ax.legend(fontsize=14)
-ax.grid(axis='y', linestyle='--', alpha=0.8)
-
-plt.tight_layout()
-plt.savefig("367_Glen_Osmond_Model_Error_Metrics_Comparison.pdf", format='pdf')
-plt.show()
+print("=== OSM-MEPS Model vs Measured ===")
+print(f"R²:   {r2_epsm:.4f}")
+print(f"RMSE: {rmse_epsm:.2f} kWh")
+print(f"MAE:  {mae_epsm:.2f} kWh")
