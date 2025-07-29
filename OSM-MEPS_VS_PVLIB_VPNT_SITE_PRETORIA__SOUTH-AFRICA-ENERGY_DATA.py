@@ -28,7 +28,6 @@ temp_coeff = -0.0034                                          # Power loss per Â
 stc_irradiance = 1000                                         # Standard irradiance in W/mÂ²
 system_capacity_kw = 17.6
 system_capacity_w = system_capacity_kw * 1000
-num_panels_pvlib = int(system_capacity_w / panel_power_max)   # Number of panels
 inverter_capacity_w = 16000                                   # Total inverter capacity (2 x 8kW)
 shading_hour_start = "16:00"
 shading_hour_end = "17:00"
@@ -54,8 +53,8 @@ temp_cell = pvlib.temperature.sapm_cell(
 )
 
 # Calculate DC power with temperature correction
-#old line: dc_power_pvlib = poa_irradiance * num_panels_pvlib * 0.25 * (1 + temp_coeff * (temp_cell - 25))
-dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max * (1 + temp_coeff * (temp_cell - 25))
+dc_power_pvlib = poa_irradiance / stc_irradiance * panel_power_max *num_panels_osm_meps* (1 + temp_coeff * (temp_cell - 25))
+
 # Convert DC to AC power using inverter efficiency
 ac_power_pvlib = dc_power_pvlib * inverter_efficiency
 
@@ -63,7 +62,7 @@ ac_power_pvlib = dc_power_pvlib * inverter_efficiency
 ac_power_pvlib = np.minimum(ac_power_pvlib, inverter_capacity_w)
 
 # Apply shading losses from 4 PM to 5 PM
-ac_power_pvlib[df.index.indexer_between_time(shading_hour_start, shading_hour_end)] *= 0.99
+ac_power_pvlib[df.index.indexer_between_time(shading_hour_start, shading_hour_end)] *= 0.85
 
 # Convert power to hourly energy in kWh
 df['pvlib_energy_kWh'] = (ac_power_pvlib / 1000).resample('h').mean()
@@ -112,12 +111,20 @@ df['scaled_power'] = df['ac_power'] * num_panels_osm_meps
 # Apply inverter clipping
 df['scaled_power'] = np.minimum(df['scaled_power'], inverter_capacity_w)
 
-# Apply 15% shading loss from 4 PM to 5 PM
-shading_mask = df.index.indexer_between_time(shading_hour_start, shading_hour_end)
-df.iloc[shading_mask, df.columns.get_loc('scaled_power')] *= 0.85
+# Create mask for dates between April 1 and October 15
+season_mask = (df.index.month >= 4) & ((df.index.month < 10) | ((df.index.month == 10) & (df.index.day <= 15)))
+
+# Create mask for time between 16:00 and 17:00
+time_mask = df.index.indexer_between_time(shading_hour_start, shading_hour_end)
+
+# Combine: keep only indices where both date and time match
+final_shading_mask = df.index[time_mask][season_mask[time_mask]]
+
+# Apply 15% shading loss
+df.loc[final_shading_mask, 'scaled_power'] *= 0.85
 
 # Apply general system losses
-df['actual_power'] = df['scaled_power'] * (1 - 0.01)
+df['actual_power'] = df['scaled_power'] * (1 - 0.08)
 
 # Convert power to energy in kWh (5-minute intervals)
 df['epsm_energy_kWh'] = df['actual_power'] * (5 / 60) / 1000
@@ -169,10 +176,8 @@ ax.grid(True, linestyle=':', linewidth=1, color='gray')
 ax.tick_params(axis='both', labelsize=17)
 
 plt.tight_layout()
-plt.savefig("VPNT_final_South_Africa_Comparison_PVLIB_OSM_MEPS_PVOutput.pdf", format='pdf', facecolor=fig.get_facecolor())
+plt.savefig("Figure_25.pdf", format='pdf', facecolor=fig.get_facecolor())
 plt.show()
-
-
 
 
 
@@ -235,7 +240,7 @@ temp_cell = pvlib.temperature.sapm_cell(
 )
 
 # Calculate DC power with temperature correction
-dc_power_pvlib = poa_irradiance * num_panels_pvlib * 0.25 * (1 + temp_coeff * (temp_cell - 25))
+#ERROR: --> dc_power_pvlib = poa_irradiance * num_panels_pvlib * 0.25 * (1 + temp_coeff * (temp_cell - 25))
 
 # Convert DC to AC power using inverter efficiency
 ac_power_pvlib = dc_power_pvlib * inverter_efficiency
