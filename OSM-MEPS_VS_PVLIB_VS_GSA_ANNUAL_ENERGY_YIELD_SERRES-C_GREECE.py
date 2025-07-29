@@ -9,10 +9,10 @@ df = pd.read_csv(file_path)
 df['period_end'] = pd.to_datetime(df['period_end'])
 df.set_index('period_end', inplace=True)
 
-# === Filter for the full year 2024 ===
+# === Filter for 2024 ===
 df = df[df.index.year == 2024]
 
-# === Ensure required columns are present ===
+# === Ensure required columns ===
 required_columns = ['dni', 'ghi', 'dhi', 'air_temp', 'albedo', 'zenith', 'azimuth',
                     'cloud_opacity', 'relative_humidity', 'wind_speed_10m']
 for col in required_columns:
@@ -43,19 +43,17 @@ poa = pvlib.irradiance.get_total_irradiance(
     solar_azimuth=solar_position['azimuth']
 )
 poa_irradiance = poa['poa_global']
-
-# SAPM temperature model
 temp_cell = pvlib.temperature.sapm_cell(
     poa_irradiance, df['air_temp'], df['wind_speed_10m'], -3.47, -0.0594, 3
 )
 
-
+#dc_power_pvlib = poa_irradiance * num_panels * 0.25 * (1 + temp_coeff * (temp_cell - 25))
 dc_power_pvlib = poa_irradiance / stc_irradiance * num_panels * panel_power_max * (1 + temp_coeff * (temp_cell - 25))
 ac_power_pvlib = dc_power_pvlib * inverter_efficiency
-df['pvlib_energy_kWh'] = (ac_power_pvlib / 1000).resample('H').mean()
+df['pvlib_energy_kWh'] = (ac_power_pvlib / 1000).resample('h').mean()
 daily_energy_pvlib = df['pvlib_energy_kWh'].resample('D').sum()
 
-# === SM-EPSM Method ===
+# === OSM-MEPS MODEL ===
 tilt_rad = np.radians(tilt)
 azimuth_panel_rad = np.radians(azimuth)
 df['azimuth'] = df['azimuth'] % 360
@@ -74,58 +72,54 @@ df['poa_diffuse'] = df['dhi'] * (1 + np.cos(tilt_rad)) / 2
 df['poa_sky_diffuse'] = df['ghi'] * df['albedo'] * (1 - np.cos(tilt_rad)) / 2
 df['poa_total'] = df['poa_direct'] + df['poa_diffuse'] + df['poa_sky_diffuse']
 
-nominal_operating_cell_temp = 45
-df['module_temp'] = nominal_operating_cell_temp + df['poa_total'] / 800 * (28 - df['air_temp'])
-
-df['dc_power'] = panel_power_max * (1 + temp_coeff * (df['module_temp'] - nominal_operating_cell_temp))
+df['module_temp'] = 45 + df['poa_total'] / 800 * (28 - df['air_temp'])
+df['dc_power'] = panel_power_max * (1 + temp_coeff * (df['module_temp'] - 45))
 df['dc_power'] *= df['poa_total'] / stc_irradiance
-df['dc_power'] *= (1 - 0.002 * df['relative_humidity'])
-
-df['ac_power'] = df['dc_power'] * inverter_efficiency
+df['dc_power'] *= (1 - 0.0002 * df['relative_humidity']) #Environmental derating (humidity)
+df['ac_power'] = df['dc_power'] * inverter_efficiency_epsm
 df['scaled_power'] = df['ac_power'] * num_panels
-df['actual_power'] = df['scaled_power'] * (1 - 0.01) * (1 - 0.01)
+df['actual_power'] = df['scaled_power'] * (1 - 0.05) #Post-system empirical loss factors (like soiling, cables, mismatch)
 
-df['epsm_energy_kWh'] = df['actual_power'].resample('H').mean() / 1000
+# Mask for May to August
+april_to_sep_mask = df.index.month.isin([4,5, 6, 7, 8,9])
+
+# Apply extra derating only for April to September
+df.loc[april_to_sep_mask, 'actual_power'] *= (1 - 0.15) # dust and soiling-site dependent empirical coefficient
+
+df['epsm_energy_kWh'] = df['actual_power'].resample('h').mean() / 1000
 daily_energy_epsm = df['epsm_energy_kWh'].resample('D').sum()
 
 # === Load PVOutput actual data ===
 pvoutput_actual = pd.read_csv("serres_2024_full_dataset.csv")
-pvoutput_actual['Date'] = pd.to_datetime(pvoutput_actual['Date'], dayfirst=False)
+pvoutput_actual['Date'] = pd.to_datetime(pvoutput_actual['Date'])
 pvoutput_actual.set_index('Date', inplace=True)
-
 pvoutput_actual['Generated_kWh'] = pd.to_numeric(pvoutput_actual['Generated_kWh'], errors='coerce')
-pvoutput_actual = pvoutput_actual.dropna()
+pvoutput_actual.dropna(inplace=True)
 
-# === Plot: Model vs PVOutput Daily Energy ===
+# === Set Garamond font globally ===
 plt.rcParams["font.family"] = "Garamond"
-plt.figure(figsize=(13, 6))
 
-plt.plot(daily_energy_pvlib.index, daily_energy_pvlib, label="PVLIB-Model", linestyle='-', linewidth=3, color='orange')
-plt.plot(daily_energy_epsm.index, daily_energy_epsm, label="OSM-MEPS Model", linestyle='--', linewidth=3, color='green')
+# === Line Plot: Daily Energy ===
+fig, ax = plt.subplots(figsize=(13, 6), facecolor='#f9f9f9')
+ax.set_facecolor('#f9f9f9')
+
+ax.plot(daily_energy_pvlib.index, daily_energy_pvlib, label="PVLIB Model", linewidth=3, color='orange')
+ax.plot(daily_energy_epsm.index, daily_energy_epsm, label="OSM-MEPS Model", linestyle='--', linewidth=3, color='green')
 
 if not pvoutput_actual.empty:
-    measured = pvoutput_actual['Generated_kWh'].dropna()
-    plt.plot(
-        measured.index, 
-        measured, 
-        label="Serres-C PV Power Plant Output Energy (Measured)", 
-        linestyle='-', 
-        marker='o', 
-        linewidth=3, 
-        color='blue'
-    )
+    ax.plot(pvoutput_actual.index, pvoutput_actual['Generated_kWh'], 
+            label="Measured Solar PV Energy (Serres-C)", linestyle='-', linewidth=3, color='blue')
 
-plt.xlabel("Date", fontsize=18)
-plt.ylabel("Daily Energy (kWh)", fontsize=18)
-plt.title("Serres-C Daily Solar Energy (2024): Modelled vs Measured", fontsize=20)
-plt.legend(fontsize=17, loc='lower center', bbox_to_anchor=(0.5, -0.25), ncol=3)
-
-plt.grid(True, linestyle='--', alpha=0.95)
-plt.xticks(rotation=0, fontsize=16)
-plt.yticks(fontsize=16)
+ax.set_xlabel("Date", fontsize=18,fontweight='bold')
+ax.set_ylabel("Daily Energy (kWh)", fontsize=18,fontweight='bold')
+ax.legend(fontsize=18, loc='lower center', bbox_to_anchor=(0.5, -0.35), ncol=3)
+ax.grid(True, linestyle='--', alpha=0.9)
+plt.xticks(fontsize=17)
+plt.yticks(fontsize=17)
 plt.tight_layout()
-plt.savefig("SERRES_C_Final_Comparison_PVLIB_EPSM_PVOutput_Yearly.pdf", format='pdf')
+plt.savefig("Figure_16.pdf", format='pdf')
 plt.show()
+
 
 # === Bar Plot: GSA Monthly Totals ===
 gsa_data = {
