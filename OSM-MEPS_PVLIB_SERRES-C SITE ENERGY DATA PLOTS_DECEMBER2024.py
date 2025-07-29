@@ -83,11 +83,10 @@ df['module_temp'] = nominal_operating_cell_temp + df['poa_total'] / 800 * (28 - 
 
 df['dc_power'] = panel_power_max * (1 + temp_coeff_epsm * (df['module_temp'] - nominal_operating_cell_temp))
 df['dc_power'] *= df['poa_total'] / stc_irradiance
-df['dc_power'] *= (1 - 0.002 * df['relative_humidity'])
-
+df['dc_power'] *= (1 - 0.0005 * df['relative_humidity'])
 df['ac_power'] = df['dc_power'] * inverter_efficiency_epsm
 df['scaled_power'] = df['ac_power'] * num_panels
-df['actual_power'] = df['scaled_power'] * (1 - 0.01) * (1 - 0.01)
+df['actual_power'] = df['scaled_power'] * (1 - 0.0025) * (1 - 0.0025)
 
 df['epsm_energy_kWh'] = df['actual_power'].resample('H').mean() / 1000
 daily_energy_epsm = df['epsm_energy_kWh'].resample('D').sum()
