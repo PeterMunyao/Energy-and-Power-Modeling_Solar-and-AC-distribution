@@ -78,13 +78,13 @@ df['dc_power'] *= df['poa_total'] / stc_irradiance
 df['dc_power'] *= (1 - 0.0002 * df['relative_humidity']) #Environmental derating (humidity)
 df['ac_power'] = df['dc_power'] * inverter_efficiency_epsm
 df['scaled_power'] = df['ac_power'] * num_panels
-df['actual_power'] = df['scaled_power'] * (1 - 0.05) #Post-system empirical loss factors (like soiling, cables, mismatch)
+df['actual_power'] = df['scaled_power'] * (1 - 0.05) # dust and soiling-site dependent empirical coefficient
 
 # Mask for May to August
 april_to_sep_mask = df.index.month.isin([4,5, 6, 7, 8,9])
 
 # Apply extra derating only for April to September
-df.loc[april_to_sep_mask, 'actual_power'] *= (1 - 0.15) # dust and soiling-site dependent empirical coefficient
+df.loc[april_to_sep_mask, 'actual_power'] *= (1 - 0.15) # Post-system empirical loss factors (cables, mismatch)
 
 df['epsm_energy_kWh'] = df['actual_power'].resample('h').mean() / 1000
 daily_energy_epsm = df['epsm_energy_kWh'].resample('D').sum()
