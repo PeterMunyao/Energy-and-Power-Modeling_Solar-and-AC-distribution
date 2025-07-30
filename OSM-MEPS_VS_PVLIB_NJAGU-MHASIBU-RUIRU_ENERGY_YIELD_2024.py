@@ -31,9 +31,8 @@ system_capacity_w = system_capacity_kw * 1000
 num_panels = int(system_capacity_w / panel_power_max)
 efficiency_stc = 0.25
 temp_coeff = -0.004
-inverter_efficiency = 0.975
-losses = 1
-
+inverter_efficiency = 0.95
+stc_irradiance=1000
 latitude = -1.11665
 longitude = 36.92927
 
@@ -133,11 +132,12 @@ ax.legend(loc='upper center',
           frameon=False)
 
 plt.tight_layout()
-plt.savefig("NJAGU_FINAL_KENYA_PVLIB_vs_OSM_MEPS_daily_energy.pdf", format="pdf", bbox_inches='tight')
+plt.savefig("Figure_32.pdf", format="pdf", bbox_inches='tight')
 plt.show()
 
 # === Save Output ===
-df.to_csv("solar_power_output_combined_2024.csv")
+df.to_csv("solar_pv_energy_output_combined_2024.csv")
+
 
 # ---------------------------------------------------------
 # 7. Compute Error Metrics
