@@ -1,0 +1,36 @@
+\begin{table*}[htbp]
+\centering
+\caption{Solar PV Model Performance Comparison in Select Locations: North and South Hemispheres}
+\renewcommand{\arraystretch}{1.45}
+\rowcolors{2}{gray!20}{white} % Alternating colors start from second row
+\fontsize{8.7}{7.8}\selectfont
+\begin{threeparttable}
+\begin{tabular}{|p{2.90cm}|p{2.0cm}|p{2.0cm}|
+                S[table-format=2.0]|
+                S[table-format=2.00]|
+                S[table-format=-1.07]|}
+\hline
+\rowcolor{gray!30}
+\textbf{LOCATION} & \textbf{PERIOD} & \textbf{MODEL} & \textbf{MAE (kWh)} & \textbf{RMSE (kWh)} & \textbf{R\textsuperscript{2}} \\ 
+\hline
+Serres C, Greece & Dec 2024 & PVLIB & 348.91 & 460.04 & 0.888 \\
+Serres C, Greece & Dec 2024 & OSM-MEPS & 255.39 & 349.75 & 0.935 \\
+Serres C, Greece & May 2024 & PVLIB & 518.94 & 650.02 & 0.855 \\
+Serres C, Greece & May 2024 & OSM-MEPS & 351.08 & 459.59 &  0.927 \\
+Serres C, Greece & 2024 & PVLIB & 378.52 & 456.24 & 0.931 \\
+Serres C, Greece & 2024 & OSM-MEPS & 319.71 & 406.76 & 0.945 \\
+Pretoria, South Africa & 2024 & PVLIB & 7.38 & 8.85 & 0.297 \\
+Pretoria, South Africa & 2024 & OSM-MEPS & 4.54 & 5.91 & 0.686 \\
+Adelaide, Australia & 2024 & PVLIB & 7.91 & 8.70 & 0.785 \\
+Adelaide, Australia & 2024 & OSM-MEPS & 5.16 & 6.86 & 0.866 \\
+Kisumu, Kenya & 2024 & PVLIB & 0.86 & 1.51 & -0.073 \\
+Kisumu, Kenya & 2024 & OSM-MEPS & 1.04 & 1.42 & 0.047 \\
+\hline
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item Notes: MAE = Mean Absolute Error, RMSE = Root Mean Square Error. The OSM-MEPS model demonstrates satisfactory performance across all locations with lower MAE, RMSE and consistently higher R\textsuperscript{2} values.
+\end{tablenotes}
+\end{threeparttable}
+\label{tab:model_performance}
+\end{table*}

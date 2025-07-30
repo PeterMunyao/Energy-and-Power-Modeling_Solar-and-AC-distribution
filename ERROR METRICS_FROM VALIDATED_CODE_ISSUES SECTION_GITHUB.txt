@@ -1,0 +1,87 @@
+
+------------FOR CONFIRMATION ONLY--------------------
+------------DATA FROM VALIDATED AND UPDATED CODE THAT IS AVAILABLE FOR USE ON GITHUB---------------
+
+DECEMBER 2024-SERRES-C
+
+PVLIB vs PVOutput_SERRES-C Metrics: 
+RMSE = 460.044, 
+MAE = 348.917, 
+R² = 0.888
+
+OSM-MEPS vs PVOutput_SERRES-C Metrics: 
+RMSE = 349.754, 
+MAE = 255.399, 
+R² = 0.935
+
+---------------------------------------------------------
+
+MAY 2024-SERRES-C 
+
+PVLIB Model vs PVOutput_SERRES-C:
+MAE  = 518.94 kWh
+RMSE = 650.02 kWh
+R²   = 0.8553
+
+OSM-MEPS Model vs PVOutput_SERRES-C:
+MAE  = 351.08 kWh
+RMSE = 459.59 kWh
+R²   = 0.9277
+
+-------------------------------------------------------
+2024: SERRES-C PVLIB VS OSM-MEPS VS SITE MEASURED ENERGY YIELD
+#DUST DERATING DONE FROM APRIL-SEPTEMBER TO CAPTURE REALISTIC WORLD CONDITIONS
+
+PVLIB Model:
+MAE : 378.5216318225721kWh
+RMSE: 456.24067543500195kWh
+R²  : 0.9313949334694717
+
+OSM-MEPS Model:
+MAE : 319.71129685069917kWh
+RMSE: 406.76640942361655kWh
+R²  : 0.9454671305151812
+
+--------------------------------------------------------------
+2024: VPNT - PRETORIA-SOUTH AFRICA _PVLIB_VS_OSM-MEPS_VPNT SITE MEASURED ENERGY YIELD
+
+
+PVLIB Model:
+MAE : 7.381020202608628kWh
+RMSE: 8.851644650614542kWh
+R²  : 0.29705567606990135
+
+OSM-MEPS Model:
+MAE : 4.545590050727652kWh
+RMSE: 5.911101305597771kWh
+R²  : 0.6865200335212868
+
+-------------------------------------------------------------
+GLEN OSMOND ROOF-TOP PV SITE: ADELAIDE-AUSTRALIA
+
+=== PVLIB Model vs Measured ===
+
+R²:   0.7850
+RMSE: 8.70 kWh
+MAE:  7.91 kWh
+
+=== OSM-MEPS Model vs Measured ===
+
+R²:   0.8664
+RMSE: 6.86 kWh
+MAE:  5.16 kWh
+
+----------------------------------------------------------------
+
+KISUMU SITE, KENYA
+
+ PVLIB Model Metrics:
+  MAE  : 0.86 kWh
+  RMSE : 1.51 kWh
+  R²   : -0.073
+
+OSM-MEPS Simple Model Metrics:
+  MAE  : 1.04 kWh
+  RMSE : 1.42 kWh
+  R²   : 0.047
+

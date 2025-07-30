@@ -1,0 +1,13 @@
+Statistical evaluation, summarized in Table~\ref{tab:model_performance} shows that the OSM-MEPS model closely matched the measured energy output at the Serres-C site in Greece, achieving a mean absolute error (MAE) of 319.71~kWh, a root mean squared error (RMSE) of 406.76~kWh, and an $R^2$ of 0.945 over the full year. 
+In contrast, PVLIB recorded a higher MAE of 378.52~kWh, RMSE of 456.24~kWh and a lower $R^2$ of 0.931. Seasonal analysis further confirmed OSM-MEPS’s robustness: in May~2024, it achieved an $R^2$ of 0.927, outperforming PVLIB’s 0.855, with lower MAE (351.08~kWh vs.\ 518.94~kWh) and RMSE (459.59~kWh vs.\ 650.02~kWh). 
+In December~2024, OSM-MEPS maintained better accuracy (MAE~=~255.39~kWh, RMSE~=~349.75~kWh, $R^2=0.935$) compared to PVLIB (MAE~=~348.91~kWh, RMSE~=~460.04~kWh, $R^2=0.888$).
+
+Geographic tests showed similar trends. In Pretoria, OSM-MEPS achieved a MAE of 4.54~kWh, RMSE of 5.91~kWh and $R^2=0.686$, while PVLIB showed higher errors and a lower $R^2=0.297$. 
+In Adelaide, PVLIB recorded a MAE of 7.91~kWh, RMSE of 8.70~kWh, and $R^2=0.785$, whereas OSM-MEPS performed better ($R^2=0.866$, MAE~=~5.16~kWh, RMSE~=~6.86~kWh). 
+In Kisumu, PVLIB showed a negative $R^2=-0.073$, with MAE~=~0.86~kWh and RMSE~=~1.51~kWh, while OSM-MEPS achieved $R^2=0.047$, MAE~=~1.04~kWh, and RMSE~=~1.42~kWh. 
+These errors were partly influenced by data limitations, key in modeling, such as incomplete annual records and logging issues reported on PVOutput~\cite{PVOutput2025}. 
+Medium shading was noted in metadata without temporal detail and unreported soiling, maintenance downtime, or atmospheric smoke from refuse burning added further uncertainty.
+
+The results highlight OSM-MEPS’s high accuracy in capturing daily and seasonal dynamics across diverse climates. 
+Its performance edge is most evident during high-variability months and in non-temperate regions, demonstrating geographic generalizability. While PVLIB remains accessible for basic modeling, its deterministic structure and lack of integrated empirical loss adjustments limit its forecasting reliability. 
+These findings underscore the importance of thermal coupling in solar PV module design, advanced irradiance modeling and loss characterization for improving photovoltaic output simulations.
