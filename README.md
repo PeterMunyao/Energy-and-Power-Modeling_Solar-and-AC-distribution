@@ -40,6 +40,12 @@ Below is the workflow illustrating how the model integrates data, processes, and
   <em>Figure 2: Workflow of the OSM-MEPS model from solar PV modeling.</em>
 </p>
 
+## Citing OSM-MEPS method and model
+
+Please cite our work as follows:
+
+P. M. Mutuku, A. L. L. Jarvis, A. G. Swanson and M. F. Khan, "A Systematic Open Source Modeling Method for Energy and Power Systems: Solar PV Application," in IEEE Access, vol. 13, pp. 131869-131908, 2025, doi: 10.1109/ACCESS.2025.3592577. 
+
 ## Contact
 
 If you have any questions, suggestions, or would like to collaborate, feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/peter-munyao-3251b3a4/).
