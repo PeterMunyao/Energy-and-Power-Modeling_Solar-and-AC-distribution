@@ -44,7 +44,7 @@ Below is the workflow illustrating how the model integrates data, processes, and
 
 Please cite our work as follows:
 
-P. M. Mutuku, A. L. L. Jarvis, A. G. Swanson and M. F. Khan, "A Systematic Open Source Modeling Method for Energy and Power Systems: Solar PV Application," in IEEE Access, vol. 13, pp. 131869-131908, 2025, doi: 10.1109/ACCESS.2025.3592577. 
+P. M. Mutuku, A. L. L. Jarvis, A. G. Swanson and M. F. Khan,  "A Systematic Open Source Modeling Method for Energy and Power Systems: Solar PV Application,"  *IEEE Access*, vol. 13, pp. 131869–131908, 2025,  doi: [10.1109/ACCESS.2025.3592577 (https://doi.org/10.1109/ACCESS.2025.3592577)
 
 ## Contact
 
