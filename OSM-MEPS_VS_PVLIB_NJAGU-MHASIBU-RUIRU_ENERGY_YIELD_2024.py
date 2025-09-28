@@ -35,6 +35,7 @@ inverter_efficiency = 0.95
 stc_irradiance=1000
 latitude = -1.11665
 longitude = 36.92927
+losses = 1
 
 solar_position = pvlib.solarposition.get_solarposition(df.index, latitude, longitude)
 
