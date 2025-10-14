@@ -1,4 +1,4 @@
-## ⚠️ Error during latex code prompting
+## ⚠️ Correction for an Error during latex code prompting
 
 ## Derivation (Dot Product)
 
