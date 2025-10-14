@@ -1,3 +1,7 @@
+# Open Source Modeling Method for Energy and Power Systems
+
+OSM-MEPS: Solar Photovoltaic (PV) modeling
+
 ## ⚠️ Correction for an Error during latex code prompting
 
 ## Derivation (Dot Product)
