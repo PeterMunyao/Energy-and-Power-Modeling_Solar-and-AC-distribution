@@ -6,7 +6,7 @@ The Angle of Incidence (AOI) is derived from the **dot product** between the sol
 
 `cos(θ_AOI) = cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t)·cos(φ_s − φ_p)`
 
-In our code, we used the correct formula, as can be seen by the files uploaded. However, we mistyped two instances of the equation in our journal paper (+ ought to be * i.e. sin(θ_z)·sin(θ_t) + cos(φ_s − φ_p) -> sin(θ_z)·sin(θ_t)·cos(φ_s − φ_p)). We therefore disclose this to readers and modelers in general.
+In our code, we used the correct formula, as can be seen by the files uploaded. However, we mistyped two instances of the equation in our journal paper (+ ought to be * i.e. `sin(θ_z)·sin(θ_t) + cos(φ_s − φ_p) -> sin(θ_z)·sin(θ_t)·cos(φ_s − φ_p))`. We therefore disclose this to readers and modelers in general.
 
 ❌ **Incorrect form:**  
 `θ_AOI = cos⁻¹[ cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t) + cos(φ_s − φ_p) ]`
