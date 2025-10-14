@@ -21,14 +21,14 @@ In our `simulation code, we used the correct formula`, as can be seen by the fil
 # OSM-MEPS: Solar PV
 
 This repository contains code, data and documentation for the systematic open source modeling method for energy and power system modeling focused on solar photovoltaic (PV) generation. 
-It supports analysis, simulation and visualization of energy yield for validation using open-source tools such as Python and PVLIB and site measured data from https://pvoutput.org/list.jsp?df=20241201&dt=20241231&id=84471&sid=77748&t=m&v=0.
+It supports analysis, simulation and visualization of energy yield for validation using open-source tools such as Python and PVLIB and `site measured data` from https://pvoutput.org/list.jsp?df=20241201&dt=20241231&id=84471&sid=77748&t=m&v=0.
 
 ## Overview
 
 The project includes:
 - **OSM-MEPS** (Open Source Modeling Method for Energy and Power Systems) model, derived from key steps in energy and power systems modeling and its overarching frameworks that combines first-principles thinking, the scientific method and engineering design.
-- High-resolution solar PV simulations using meteorological inputs such as GHI, DNI, temperature and relative humidity.
-- Comparative analysis with PVLIB model and real world solar PV energy data across multiple sites (e.g., Greece, South Africa, Australia and Kenya).
+- High-resolution solar PV simulations using meteorological inputs such as `GHI, DNI, temperature and relative humidity`.
+- Comparative analysis with PVLIB model and real world solar PV energy data across `multiple sites (e.g., Greece, South Africa, Australia and Kenya)`.
 - Energy yield estimation, angle of incidence modeling and tilt-azimuth optimization.
 
 ## Requirements
@@ -50,7 +50,7 @@ The project includes:
 
 ## OSM-MEPS Workflow
 
-Below is the workflow illustrating how the model integrates data, processes, and simulations from input to output.
+Below is the workflow illustrating how the model integrates data, processes and simulations from input to output.
 
 [OSM-MEPS Workflow]
 
