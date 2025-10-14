@@ -1,4 +1,18 @@
+## ⚠️ Error during latex code prompting
 
+## Derivation (Dot Product)
+
+The Angle of Incidence (AOI) is derived from the **dot product** between the solar vector and the panel normal vector:
+
+`cos(θ_AOI) = cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t)·cos(φ_s − φ_p)`
+
+In our code, we used the correct formula, as can be seen by the files uploaded. However, we mistyped two instances of the equation in our journal paper. We therefore disclose this to readers and modelers in general.
+
+❌ **Incorrect form:**  
+`θ_AOI = cos⁻¹[ cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t) + cos(φ_s − φ_p) ]`
+
+✅ **Correct form:**  
+`θ_AOI = cos⁻¹[ cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t)·cos(φ_s − φ_p) ]`
 
 # OSM-MEPS: Solar PV
 
@@ -41,22 +55,6 @@ Below is the workflow illustrating how the model integrates data, processes, and
   <br>
   <em>Figure 2: Workflow of the OSM-MEPS model from solar PV modeling.</em>
 </p>
-
-## 📐 Derivation (Dot Product)
-
-The Angle of Incidence (AOI) is derived from the **dot product** between the solar vector and the panel normal vector:
-
-`cos(θ_AOI) = cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t)·cos(φ_s − φ_p)`
-
----
-
-## ⚠️ Common Mistake
-
-❌ **Incorrect form:**  
-`θ_AOI = cos⁻¹[ cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t) + cos(φ_s − φ_p) ]`
-
-✅ **Correct form:**  
-`θ_AOI = cos⁻¹[ cos(θ_z)·cos(θ_t) + sin(θ_z)·sin(θ_t)·cos(φ_s − φ_p) ]`
 
 
 ## Citing OSM-MEPS method and model
