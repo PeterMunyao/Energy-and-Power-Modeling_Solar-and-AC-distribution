@@ -1,3 +1,8 @@
+# OPEN THE PYTHON FILE NAMED 'energy_analysis.py' and ADD THIS CODE before the 'print("Success")' line. 
+# This will calculate all configuration (tilt-azimuth) energy quantities and save them as csv and text. 
+# One can now use the sorting tools in excel to group highest to lowest energy output tilt-azimuth configuration.
+
+
 import pandas as pd
 
 # === SAVE TOTAL ANNUAL ENERGY TO CSV AND SHOW SUMMARY ===
