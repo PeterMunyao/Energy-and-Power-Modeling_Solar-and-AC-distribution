@@ -1,0 +1,29 @@
+import pandas as pd
+
+# === SAVE TOTAL ANNUAL ENERGY TO CSV AND SHOW SUMMARY ===
+totals_list = []
+
+for az in azimuth_angles:
+    for tilt in tilt_angles:
+        totals_list.append({
+            'Azimuth': az,
+            'Tilt': tilt,
+            'AnnualEnergy_MWh': annual_energy_MWh[az][tilt]
+        })
+
+totals_df = pd.DataFrame(totals_list)
+csv_filename = "Tilt_Azimuth_Annual_Energy.csv"
+totals_df.to_csv(csv_filename, index=False)
+
+# Show minimal summary in FlutterWare-compatible way
+summary_lines = ["Annual Energy Summary (MWh):"]
+for az in azimuth_angles:
+    for tilt in tilt_angles:
+        energy = annual_energy_MWh[az][tilt]
+        summary_lines.append(f"Az {az}°, Tilt {tilt}°: {energy:.2f} MWh")
+
+summary_text = "\n".join(summary_lines)
+
+# Save summary to text file as well
+with open("Tilt_Azimuth_Annual_Energy_Summary.txt", "w") as f:
+    f.write(summary_text)
